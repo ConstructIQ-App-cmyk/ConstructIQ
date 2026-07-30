@@ -37,6 +37,10 @@ let selectedJobId = null;
 const crewColors = ['orange', 'blue', 'green'];
 const commercialInspectionDefaults = ['Permit and approved plans on site', 'Underground / slab rough-in', 'Service equipment inspection', 'Grounding and bonding inspection', 'Rough-in wiring inspection', 'Above-ceiling inspection', 'Fire alarm rough-in inspection', 'Emergency and egress lighting inspection', 'Final electrical inspection', 'Final fire alarm inspection'];
 const initials = name => name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase();
+const greetingName = name => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return parts.length > 1 ? `${parts[0]} ${parts.at(-1)[0].toUpperCase()}.` : (parts[0] || 'there');
+};
 
 function renderProfile() {
   document.querySelector('#profile-name').textContent = profileName || 'there';
@@ -57,7 +61,7 @@ document.querySelector('#profile-form').addEventListener('submit', event => {
   event.preventDefault();
   const name = document.querySelector('#profile-input').value.trim();
   if (!name) return;
-  profileName = name;
+  profileName = greetingName(name);
   localStorage.setItem(profileKey, profileName);
   document.querySelector('#profile-modal').hidden = true;
   renderProfile();
@@ -72,15 +76,17 @@ function showAuthMessage(message, isError = false) {
 function renderAuthMode() {
   document.querySelector('#auth-title').textContent = isSignUp ? 'Create your account' : 'Sign in to your workspace';
   document.querySelector('#auth-description').textContent = isSignUp ? 'Create an account with your work email.' : 'Use your work email to access the field command center.';
-  document.querySelector('#auth-name').hidden = !isSignUp;
-  document.querySelector('#auth-name').required = isSignUp;
+  document.querySelector('#auth-first-name').hidden = !isSignUp;
+  document.querySelector('#auth-last-name').hidden = !isSignUp;
+  document.querySelector('#auth-first-name').required = isSignUp;
+  document.querySelector('#auth-last-name').required = isSignUp;
   document.querySelector('#auth-password').autocomplete = isSignUp ? 'new-password' : 'current-password';
   document.querySelector('#auth-submit').textContent = isSignUp ? 'Create account' : 'Sign in';
   document.querySelector('#auth-toggle').textContent = isSignUp ? 'Already have an account? Sign in' : 'Need an account? Create one';
   showAuthMessage('');
 }
 function applySignedInUser(user) {
-  profileName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'there';
+  profileName = greetingName(user.user_metadata?.full_name || user.email?.split('@')[0] || 'there');
   localStorage.setItem(profileKey, profileName);
   renderProfile();
   authModal.hidden = true;
@@ -99,10 +105,12 @@ document.querySelector('#auth-form').addEventListener('submit', async event => {
   if (!supabaseClient) return;
   const email = document.querySelector('#auth-email').value.trim();
   const password = document.querySelector('#auth-password').value;
-  const fullName = document.querySelector('#auth-name').value.trim();
+  const firstName = document.querySelector('#auth-first-name').value.trim();
+  const lastName = document.querySelector('#auth-last-name').value.trim();
+  const fullName = `${firstName} ${lastName}`.trim();
   showAuthMessage(isSignUp ? 'Creating account…' : 'Signing in…');
   const result = isSignUp
-    ? await supabaseClient.auth.signUp({ email, password, options: { data: { full_name: fullName } } })
+    ? await supabaseClient.auth.signUp({ email, password, options: { data: { full_name: fullName, first_name: firstName, last_name: lastName } } })
     : await supabaseClient.auth.signInWithPassword({ email, password });
   if (result.error) { showAuthMessage(result.error.message, true); return; }
   if (isSignUp && !result.data.session) showAuthMessage('Check your email to confirm your account, then sign in.');
