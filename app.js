@@ -4,7 +4,7 @@ const supabaseUrl = 'https://plzonnnsgbasizvwmfit.supabase.co';
 const supabaseAnonKey = 'sb_publishable_YIuhjQvB3Xypa-AWk9shxw_MvPm3snC';
 const supabaseClient = window.supabase?.createClient(supabaseUrl, supabaseAnonKey);
 const showView = target => {
-  const parentTabs = { 'job-detail': 'jobs', 'crew-detail': 'teams', settings: 'more' };
+  const parentTabs = { 'job-detail': 'jobs', 'crew-detail': 'teams', settings: 'more', tools: 'more' };
   const activeTab = parentTabs[target] || target;
   views.forEach(view => view.classList.toggle('active', view.id === `${target}-view`));
   navItems.forEach(item => item.classList.toggle('active', item.dataset.target === activeTab));
@@ -16,6 +16,7 @@ document.querySelectorAll('[data-target]').forEach(button => button.addEventList
 const dataVersion = 'current-field-data-v2';
 const crewKey = 'current-crews-v2';
 const jobKey = 'current-jobs-v2';
+const toolKey = 'current-tools-v1';
 const profileKey = 'current-profile-name';
 const hadExistingInstall = localStorage.getItem(dataVersion) === 'ready';
 if (!hadExistingInstall) {
@@ -31,6 +32,7 @@ if (!profileName && hadExistingInstall) {
 }
 let crews = JSON.parse(localStorage.getItem(crewKey) || '[]');
 let jobs = JSON.parse(localStorage.getItem(jobKey) || '[]');
+let tools = JSON.parse(localStorage.getItem(toolKey) || '[]');
 let selectedCrewIndex = null;
 let editingJobId = null;
 let selectedJobId = null;
@@ -123,6 +125,10 @@ function saveData() {
   localStorage.setItem(jobKey, JSON.stringify(jobs));
   render();
 }
+function saveTools() {
+  localStorage.setItem(toolKey, JSON.stringify(tools));
+  renderTools();
+}
 function renderCrews() {
   const list = document.querySelector('#crew-list');
   const select = document.querySelector('#member-crew');
@@ -159,7 +165,13 @@ function renderJobs() {
 function render() {
   renderCrews();
   renderJobs();
+  renderTools();
   document.querySelector('#home-member-count').textContent = String(crews.reduce((sum, crew) => sum + crew.members.length, 0)).padStart(2, '0');
+}
+function renderTools() {
+  const list = document.querySelector('#tool-list');
+  if (!list) return;
+  list.innerHTML = tools.length ? tools.map(tool => `<article class="tool-record"><span class="tool-mark">T</span><div><h3>${escapeHtml(tool.name)}</h3><p>${escapeHtml(tool.toolId || 'No tool ID')} · ${tool.checkedOutTo ? `Out to ${escapeHtml(tool.checkedOutTo)}` : 'Available'}</p></div><button data-tool-action="${tool.checkedOutTo ? 'checkin' : 'checkout'}" data-tool-id="${tool.id}" class="${tool.checkedOutTo ? 'checkin-tool' : 'checkout-tool'}">${tool.checkedOutTo ? 'CHECK IN' : 'CHECK OUT'}</button></article>`).join('') : '<p class="empty-state">No tools added yet. Add equipment to begin tracking check in/out.</p>';
 }
 function createCommercialChecklist() {
   return commercialInspectionDefaults.map((name, index) => ({ id: `inspection-${Date.now()}-${index}`, name, completed: false }));
@@ -215,6 +227,9 @@ document.querySelector('#show-member-form').addEventListener('click', () => {
   document.querySelector('#member-form').hidden = !document.querySelector('#member-form').hidden;
   document.querySelector('#team-form').hidden = true;
 });
+document.querySelector('#show-tool-form').addEventListener('click', () => {
+  document.querySelector('#tool-form').hidden = !document.querySelector('#tool-form').hidden;
+});
 function openJobForm(job = null) {
   editingJobId = job?.id || null;
   const form = document.querySelector('#job-form');
@@ -246,6 +261,28 @@ document.querySelector('#team-form').addEventListener('submit', event => {
 document.querySelector('#member-form').addEventListener('submit', event => {
   event.preventDefault(); const name = document.querySelector('#member-name').value.trim(); const role = document.querySelector('#member-role').value.trim(); const crewIndex = Number(document.querySelector('#member-crew').value);
   if (!name || !role || !crews[crewIndex]) return; crews[crewIndex].members.push({ name, role }); event.currentTarget.reset(); event.currentTarget.hidden = true; saveData();
+});
+document.querySelector('#tool-form').addEventListener('submit', event => {
+  event.preventDefault();
+  const name = document.querySelector('#tool-name').value.trim();
+  const toolId = document.querySelector('#tool-id').value.trim();
+  if (!name) return;
+  tools.push({ id: `tool-${Date.now()}`, name, toolId, checkedOutTo: '' });
+  event.currentTarget.reset();
+  event.currentTarget.hidden = true;
+  saveTools();
+});
+document.querySelector('#tool-list').addEventListener('click', event => {
+  const button = event.target.closest('[data-tool-action]');
+  if (!button) return;
+  const tool = tools.find(item => item.id === button.dataset.toolId);
+  if (!tool) return;
+  if (button.dataset.toolAction === 'checkout') {
+    const person = prompt(`Check out ${tool.name} to:`, '');
+    if (!person?.trim()) return;
+    tool.checkedOutTo = person.trim();
+  } else tool.checkedOutTo = '';
+  saveTools();
 });
 document.querySelector('#crew-member-form').addEventListener('submit', event => {
   event.preventDefault();
