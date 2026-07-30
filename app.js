@@ -18,6 +18,7 @@ const crewKey = 'current-crews-v2';
 const jobKey = 'current-jobs-v2';
 const toolKey = 'current-tools-v1';
 const profileKey = 'current-profile-name';
+const profileFullNameKey = 'current-profile-full-name';
 const hadExistingInstall = localStorage.getItem(dataVersion) === 'ready';
 if (!hadExistingInstall) {
   localStorage.removeItem('current-crews');
@@ -26,6 +27,7 @@ if (!hadExistingInstall) {
   localStorage.setItem(dataVersion, 'ready');
 }
 let profileName = localStorage.getItem(profileKey);
+let profileFullName = localStorage.getItem(profileFullNameKey) || profileName || '';
 if (!profileName && hadExistingInstall) {
   profileName = 'Logan';
   localStorage.setItem(profileKey, profileName);
@@ -50,21 +52,24 @@ function renderProfile() {
   document.querySelector('#settings-profile-name').textContent = profileName || 'Not set';
 }
 document.querySelector('#profile-button').addEventListener('click', () => {
-  document.querySelector('#profile-input').value = profileName || '';
+  document.querySelector('#profile-input').value = profileFullName || profileName || '';
   document.querySelector('#profile-modal').hidden = false;
   document.querySelector('#profile-input').focus();
 });
 document.querySelector('#settings-profile').addEventListener('click', () => {
-  document.querySelector('#profile-input').value = profileName || '';
+  document.querySelector('#profile-input').value = profileFullName || profileName || '';
   document.querySelector('#profile-modal').hidden = false;
   document.querySelector('#profile-input').focus();
 });
-document.querySelector('#profile-form').addEventListener('submit', event => {
+document.querySelector('#profile-form').addEventListener('submit', async event => {
   event.preventDefault();
   const name = document.querySelector('#profile-input').value.trim();
   if (!name) return;
-  profileName = greetingName(name);
+  profileFullName = name;
+  profileName = greetingName(profileFullName);
   localStorage.setItem(profileKey, profileName);
+  localStorage.setItem(profileFullNameKey, profileFullName);
+  if (supabaseClient) await supabaseClient.auth.updateUser({ data: { full_name: profileFullName } });
   document.querySelector('#profile-modal').hidden = true;
   renderProfile();
 });
@@ -88,8 +93,10 @@ function renderAuthMode() {
   showAuthMessage('');
 }
 function applySignedInUser(user) {
-  profileName = greetingName(user.user_metadata?.full_name || user.email?.split('@')[0] || 'there');
+  profileFullName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'there';
+  profileName = greetingName(profileFullName);
   localStorage.setItem(profileKey, profileName);
+  localStorage.setItem(profileFullNameKey, profileFullName);
   renderProfile();
   authModal.hidden = true;
   document.querySelector('#profile-modal').hidden = true;
