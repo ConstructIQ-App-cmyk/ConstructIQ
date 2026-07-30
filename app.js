@@ -20,6 +20,7 @@ const toolKey = 'current-tools-v1';
 const stockLocationKey = 'current-stock-locations-v1';
 const materialCatalogKey = 'current-material-catalog-v1';
 const scheduleKey = 'current-today-schedule-v1';
+const scheduleDateKey = 'current-today-schedule-date-v1';
 const serviceNotesKey = 'current-service-notes-v1';
 const profileKey = 'current-profile-name';
 const profileFullNameKey = 'current-profile-full-name';
@@ -41,6 +42,14 @@ let jobs = JSON.parse(localStorage.getItem(jobKey) || '[]');
 let tools = JSON.parse(localStorage.getItem(toolKey) || '[]');
 let stockLocations = JSON.parse(localStorage.getItem(stockLocationKey) || '[]');
 let materialCatalog = JSON.parse(localStorage.getItem(materialCatalogKey) || '[]');
+const localCalendarDate = () => {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+if (localStorage.getItem(scheduleDateKey) !== localCalendarDate()) {
+  localStorage.setItem(scheduleDateKey, localCalendarDate());
+  localStorage.removeItem(scheduleKey);
+}
 let todaySchedule = JSON.parse(localStorage.getItem(scheduleKey) || '[]');
 let serviceNotes = JSON.parse(localStorage.getItem(serviceNotesKey) || '[]');
 let selectedStockLocationId = null;
@@ -60,6 +69,13 @@ function renderProfile() {
   document.querySelector('#profile-name').textContent = profileName || 'there';
   document.querySelector('#profile-initials').textContent = profileName ? initials(profileName) : '?';
   document.querySelector('#settings-profile-name').textContent = profileName || 'Not set';
+}
+function updateTimeGreeting() {
+  const now = new Date();
+  const hour = now.getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  document.querySelector('#time-greeting').textContent = greeting;
+  document.querySelector('#current-date').textContent = now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase();
 }
 document.querySelector('#profile-button').addEventListener('click', () => {
   document.querySelector('#profile-input').value = profileFullName || profileName || '';
@@ -155,6 +171,7 @@ function saveMaterialCatalog() {
   renderMaterialCatalog();
 }
 function saveTodaySchedule() {
+  localStorage.setItem(scheduleDateKey, localCalendarDate());
   localStorage.setItem(scheduleKey, JSON.stringify(todaySchedule));
   renderTodaySchedule();
 }
@@ -258,6 +275,11 @@ function renderStockItems(location) {
   list.innerHTML = location.items.length ? location.items.map(item => { const low = Number(item.quantity) <= Number(item.minimum || 0); return `<article class="stock-item-record ${low ? 'low-stock-item' : ''}"><div><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.quantity)} ${escapeHtml(item.unit)} · Minimum: ${escapeHtml(item.minimum ?? 0)}${low ? ' · Needs attention' : ''}</small></div><button data-remove-stock-item="${item.id}" aria-label="Remove ${escapeHtml(item.name)}">&times;</button></article>`; }).join('') : '<p class="empty-state">No material added to this location yet.</p>';
 }
 function renderTodaySchedule() {
+  if (localStorage.getItem(scheduleDateKey) !== localCalendarDate()) {
+    todaySchedule = [];
+    localStorage.setItem(scheduleDateKey, localCalendarDate());
+    localStorage.removeItem(scheduleKey);
+  }
   const list = document.querySelector('#home-next-job');
   const jobSelect = document.querySelector('#schedule-job');
   const crewSelect = document.querySelector('#schedule-crew');
@@ -692,5 +714,7 @@ document.querySelector('#photo-input').addEventListener('change', event => {
 });
 render();
 renderProfile();
+updateTimeGreeting();
+setInterval(updateTimeGreeting, 60000);
 renderAuthMode();
 initializeAuth();
