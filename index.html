@@ -223,7 +223,7 @@
     </section>
     <input id="photo-input" type="file" accept="image/*" capture="environment" hidden />
     <div class="workspace-modal" id="workspace-modal" hidden>
-      <div class="workspace-card"><p class="eyebrow">SHARED COMPANY WORKSPACE</p><h2>Set up your company</h2><p>Create a new company workspace, or use a code from your company owner to join an existing one.</p><form id="create-company-form"><input id="company-name" maxlength="60" placeholder="Company name" required /><button type="submit">Create company workspace</button></form><div class="workspace-divider"><span>OR</span></div><form id="join-company-form"><input id="company-code" maxlength="8" placeholder="Company code" required /><button type="submit">Join company workspace</button></form><p id="workspace-message" class="auth-message"></p></div>
+      <div class="workspace-card"><p class="eyebrow">SHARED COMPANY WORKSPACE</p><h2>Set up your company</h2><p>Create a new company workspace, or use a code from your company owner to join an existing one.</p><form id="create-company-form" action="javascript:void(0)"><input id="company-name" maxlength="60" placeholder="Company name" required /><button type="submit">Create company workspace</button></form><div class="workspace-divider"><span>OR</span></div><form id="join-company-form" action="javascript:void(0)"><input id="company-code" maxlength="8" placeholder="Company code" required /><button type="submit">Join company workspace</button></form><p id="workspace-message" class="auth-message"></p></div>
     </div>
     <div class="auth-modal" id="auth-modal" hidden>
       <form id="auth-form" class="auth-card"><p class="eyebrow">CONSTRUCTIQ ACCESS</p><h2 id="auth-title">Sign in to your workspace</h2><p id="auth-description">Use your email to access the field command center.</p><input id="auth-first-name" maxlength="30" placeholder="First name" hidden /><input id="auth-last-name" maxlength="30" placeholder="Last name" hidden /><input id="auth-email" type="email" placeholder="Email" autocomplete="email" required /><input id="auth-password" type="password" minlength="6" placeholder="Password" autocomplete="current-password" required /><p id="auth-message" class="auth-message"></p><button id="auth-submit" type="submit">Sign in</button><button id="auth-toggle" type="button">Need an account? Create one</button></form>
@@ -232,7 +232,7 @@
       <form id="profile-form" class="profile-card"><p class="eyebrow">WELCOME TO CONSTRUCTIQ</p><h2>Who is using this device?</h2><p>Your name appears only on this device's app.</p><input id="profile-input" maxlength="50" placeholder="First and last name" required autofocus /><button type="submit">Save my name</button></form>
     </div>
     <div class="toast" id="toast">Material issue started</div>
-    <script src="app.js"></script>
+    <script src="app.js?v=40"></script>
     <script>
       if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js');
     </script>
