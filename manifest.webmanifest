@@ -1,0 +1,17 @@
+{
+  "name": "Current — Electrical Field Operations",
+  "short_name": "Current",
+  "description": "Field operations and inventory control for electrical contractors.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0a1f2f",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
