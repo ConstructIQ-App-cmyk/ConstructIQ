@@ -47,6 +47,9 @@
       .stock-location-record{width:100%;text-align:left}.stock-location-record>div{flex:1}.stock-location-record em{color:#ffcc60;font-size:22px;font-style:normal}.location-edit-toggle{margin:-5px 0 14px}.delete-stock-location-button{width:100%;border:1px solid #85443f;background:#281717;color:#ff9d92;padding:10px;font-size:11px;font-weight:900;margin:-3px 0 23px}.stock-items-heading{border-left:3px solid #ff9e1b;padding-left:11px;margin:0 0 11px}.stock-items-heading h3{color:#fff;font-size:21px;margin:4px 0 0}.stock-item-inputs{display:grid;grid-template-columns:1fr 1fr;gap:8px}.stock-item-list{display:grid;gap:8px}.stock-item-record{display:flex;align-items:center;justify-content:space-between;background:#111f29;border:1px solid #30434e;padding:11px}.stock-item-record b,.stock-item-record small{display:block}.stock-item-record b{color:#fff;font-size:13px}.stock-item-record small{color:#a3b3bb;font-size:11px;margin-top:3px}.stock-item-record button{width:27px;height:27px;border:1px solid #74423e;background:#2b1a1a;color:#ff9d92;font-size:18px;line-height:18px}
       .low-stock-item{border-color:#9b6231!important;background:#2b2118!important}.low-stock-item small{color:#ffca72!important}
     </style>
+    <style>
+      .material-search{margin:0 0 9px}.catalog-list{display:grid;gap:8px}.catalog-record{display:flex;align-items:center;justify-content:space-between;background:#111f29;border:1px solid #30434e;padding:10px}.catalog-record b,.catalog-record small{display:block}.catalog-record b{font-size:13px;color:#fff}.catalog-record small{color:#a3b3bb;font-size:10px;margin-top:3px}.catalog-record button{border:1px solid #ffb338;background:#172731;color:#ffcc60;padding:7px;font-size:8px;font-weight:900;white-space:nowrap}
+    </style>
   </head>
   <body>
     <main class="app-shell">
@@ -123,6 +126,11 @@
         <div class="tools-section-heading"><div><p class="eyebrow">STOCK LOCATIONS</p><h3>Stock control</h3></div><button id="show-stock-location-form">+ Add stock</button></div>
         <form class="management-form" id="stock-location-form" hidden><h3>Add stock location</h3><input id="stock-location-name" maxlength="50" placeholder="Location name (e.g. Main shop or Mike's truck)" required /><div class="form-actions"><button class="primary-action" type="submit">Add location</button><button class="cancel-action" data-cancel-form="stock-location-form" type="button">Cancel</button></div></form>
         <div id="stock-location-list" class="stock-location-list"></div>
+        <div class="tools-section-heading"><div><p class="eyebrow">MATERIAL CATALOG</p><h3>Material list</h3></div><button id="show-catalog-form">+ Add material</button></div>
+        <form class="management-form" id="catalog-form" hidden><h3>Add material to list</h3><input id="catalog-material-name" maxlength="60" placeholder="Material name" required /><input id="catalog-material-unit" maxlength="15" placeholder="Default unit (e.g. ft, ea, box)" required /><div class="form-actions"><button class="primary-action" type="submit">Add material</button><button class="cancel-action" data-cancel-form="catalog-form" type="button">Cancel</button></div></form>
+        <label class="search material-search"><span>⌕</span><input id="catalog-search" placeholder="Search material list" /></label>
+        <div id="catalog-list" class="catalog-list"></div>
+        <form class="management-form" id="catalog-stock-form" hidden><h3>Add material to stock</h3><input id="catalog-stock-name" readonly /><select id="catalog-stock-location" required></select><div class="stock-item-inputs"><input id="catalog-stock-quantity" type="number" min="0" step="any" placeholder="Quantity" required /><input id="catalog-stock-unit" maxlength="15" placeholder="Unit" required /></div><input id="catalog-stock-minimum" type="number" min="0" step="any" placeholder="Low-stock threshold" required /><div class="form-actions"><button class="primary-action" type="submit">Add to location</button><button class="cancel-action" data-cancel-form="catalog-stock-form" type="button">Cancel</button></div></form>
         <div class="inventory-list" id="inventory-list"><p class="empty-state">No inventory items yet. Add stock to a location to begin tracking materials.</p></div>
       </section>
 

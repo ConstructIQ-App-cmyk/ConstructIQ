@@ -18,6 +18,7 @@ const crewKey = 'current-crews-v2';
 const jobKey = 'current-jobs-v2';
 const toolKey = 'current-tools-v1';
 const stockLocationKey = 'current-stock-locations-v1';
+const materialCatalogKey = 'current-material-catalog-v1';
 const profileKey = 'current-profile-name';
 const profileFullNameKey = 'current-profile-full-name';
 const hadExistingInstall = localStorage.getItem(dataVersion) === 'ready';
@@ -37,7 +38,9 @@ let crews = JSON.parse(localStorage.getItem(crewKey) || '[]');
 let jobs = JSON.parse(localStorage.getItem(jobKey) || '[]');
 let tools = JSON.parse(localStorage.getItem(toolKey) || '[]');
 let stockLocations = JSON.parse(localStorage.getItem(stockLocationKey) || '[]');
+let materialCatalog = JSON.parse(localStorage.getItem(materialCatalogKey) || '[]');
 let selectedStockLocationId = null;
+let selectedCatalogMaterialId = null;
 let selectedCrewIndex = null;
 let editingJobId = null;
 let selectedJobId = null;
@@ -143,6 +146,10 @@ function saveStockLocations() {
   localStorage.setItem(stockLocationKey, JSON.stringify(stockLocations));
   renderStockLocations();
 }
+function saveMaterialCatalog() {
+  localStorage.setItem(materialCatalogKey, JSON.stringify(materialCatalog));
+  renderMaterialCatalog();
+}
 function renderCrews() {
   const list = document.querySelector('#crew-list');
   const select = document.querySelector('#member-crew');
@@ -181,6 +188,7 @@ function render() {
   renderJobs();
   renderTools();
   renderStockLocations();
+  renderMaterialCatalog();
   document.querySelector('#home-member-count').textContent = String(crews.reduce((sum, crew) => sum + crew.members.length, 0)).padStart(2, '0');
 }
 function renderTools() {
@@ -232,6 +240,26 @@ function openStockLocation(location) {
 function renderStockItems(location) {
   const list = document.querySelector('#stock-item-list');
   list.innerHTML = location.items.length ? location.items.map(item => { const low = Number(item.quantity) <= Number(item.minimum || 0); return `<article class="stock-item-record ${low ? 'low-stock-item' : ''}"><div><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.quantity)} ${escapeHtml(item.unit)} · Minimum: ${escapeHtml(item.minimum ?? 0)}${low ? ' · Needs attention' : ''}</small></div><button data-remove-stock-item="${item.id}" aria-label="Remove ${escapeHtml(item.name)}">&times;</button></article>`; }).join('') : '<p class="empty-state">No material added to this location yet.</p>';
+}
+function renderMaterialCatalog(searchTerm = document.querySelector('#catalog-search')?.value || '') {
+  const list = document.querySelector('#catalog-list');
+  if (!list) return;
+  const term = searchTerm.toLowerCase().trim();
+  const matches = materialCatalog.filter(material => material.name.toLowerCase().includes(term));
+  list.innerHTML = matches.length ? matches.map(material => `<article class="catalog-record"><div><b>${escapeHtml(material.name)}</b><small>Default unit: ${escapeHtml(material.unit)}</small></div><button data-add-catalog-material="${material.id}">ADD TO STOCK</button></article>`).join('') : `<p class="empty-state">${materialCatalog.length ? 'No material matches your search.' : 'No materials in your list yet. Add your first material above.'}</p>`;
+}
+function openCatalogStockForm(material) {
+  if (!material) return;
+  selectedCatalogMaterialId = material.id;
+  const form = document.querySelector('#catalog-stock-form');
+  const locationSelect = document.querySelector('#catalog-stock-location');
+  document.querySelector('#catalog-stock-name').value = material.name;
+  document.querySelector('#catalog-stock-unit').value = material.unit;
+  document.querySelector('#catalog-stock-quantity').value = '';
+  document.querySelector('#catalog-stock-minimum').value = '';
+  locationSelect.innerHTML = stockLocations.length ? stockLocations.map(location => `<option value="${location.id}">${escapeHtml(location.name)}</option>`).join('') : '<option value="">Add a stock location first</option>';
+  locationSelect.disabled = !stockLocations.length;
+  form.hidden = false;
 }
 function createCommercialChecklist() {
   return commercialInspectionDefaults.map((name, index) => ({ id: `inspection-${Date.now()}-${index}`, name, completed: false }));
@@ -293,6 +321,9 @@ document.querySelector('#show-tool-form').addEventListener('click', () => {
 document.querySelector('#show-stock-location-form').addEventListener('click', () => {
   document.querySelector('#stock-location-form').hidden = !document.querySelector('#stock-location-form').hidden;
 });
+document.querySelector('#show-catalog-form').addEventListener('click', () => {
+  document.querySelector('#catalog-form').hidden = !document.querySelector('#catalog-form').hidden;
+});
 function openJobForm(job = null) {
   editingJobId = job?.id || null;
   const form = document.querySelector('#job-form');
@@ -343,6 +374,39 @@ document.querySelector('#stock-location-form').addEventListener('submit', event 
   event.currentTarget.reset();
   event.currentTarget.hidden = true;
   saveStockLocations();
+});
+document.querySelector('#catalog-form').addEventListener('submit', event => {
+  event.preventDefault();
+  const name = document.querySelector('#catalog-material-name').value.trim();
+  const unit = document.querySelector('#catalog-material-unit').value.trim();
+  if (!name || !unit) return;
+  if (materialCatalog.some(material => material.name.toLowerCase() === name.toLowerCase())) { showToast('That material is already in your list'); return; }
+  materialCatalog.push({ id: `material-${Date.now()}`, name, unit });
+  event.currentTarget.reset();
+  event.currentTarget.hidden = true;
+  saveMaterialCatalog();
+});
+document.querySelector('#catalog-search').addEventListener('input', event => renderMaterialCatalog(event.target.value));
+document.querySelector('#catalog-list').addEventListener('click', event => {
+  const button = event.target.closest('[data-add-catalog-material]');
+  if (button) openCatalogStockForm(materialCatalog.find(material => material.id === button.dataset.addCatalogMaterial));
+});
+document.querySelector('#catalog-stock-form').addEventListener('submit', event => {
+  event.preventDefault();
+  const material = materialCatalog.find(item => item.id === selectedCatalogMaterialId);
+  const location = stockLocations.find(item => item.id === document.querySelector('#catalog-stock-location').value);
+  const quantity = Number(document.querySelector('#catalog-stock-quantity').value);
+  const unit = document.querySelector('#catalog-stock-unit').value.trim();
+  const minimum = document.querySelector('#catalog-stock-minimum').value;
+  if (!material || !location || !unit || Number.isNaN(quantity) || quantity < 0 || minimum === '') return;
+  location.items ||= [];
+  const existing = location.items.find(item => item.name.toLowerCase() === material.name.toLowerCase() && item.unit.toLowerCase() === unit.toLowerCase());
+  if (existing) { existing.quantity = String(Number(existing.quantity) + quantity); existing.minimum = minimum; }
+  else location.items.push({ id: `item-${Date.now()}`, name: material.name, quantity: String(quantity), unit, minimum });
+  event.currentTarget.reset();
+  event.currentTarget.hidden = true;
+  saveStockLocations();
+  showToast(`${material.name} added to ${location.name}`);
 });
 document.querySelector('#stock-location-list').addEventListener('click', event => {
   const card = event.target.closest('[data-stock-location-id]');
