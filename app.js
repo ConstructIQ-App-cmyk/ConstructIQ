@@ -783,6 +783,54 @@ const showToast = message => {
 };
 const quickSheet = document.querySelector('#quick-add-sheet');
 const quickOverlay = document.querySelector('#quick-add-overlay');
+const pullRefresh = document.querySelector('#pull-refresh');
+const pullRefreshLabel = document.querySelector('#pull-refresh-label');
+let pullStartY = 0;
+let pullDistance = 0;
+let isPulling = false;
+let isRefreshing = false;
+const pullThreshold = 78;
+function resetPullRefresh() {
+  pullRefresh.classList.remove('show', 'ready', 'refreshing');
+  pullRefresh.style.transform = '';
+  pullRefreshLabel.textContent = 'PULL TO REFRESH';
+  pullDistance = 0;
+  isPulling = false;
+}
+function refreshFromPull() {
+  if (isRefreshing) return;
+  isRefreshing = true;
+  pullRefresh.classList.add('show', 'refreshing');
+  pullRefresh.classList.remove('ready');
+  pullRefresh.style.transform = 'translate(-50%, 8px)';
+  pullRefreshLabel.textContent = 'REFRESHING…';
+  if (navigator.vibrate) navigator.vibrate(18);
+  setTimeout(() => window.location.reload(), 280);
+}
+document.addEventListener('touchstart', event => {
+  if (isRefreshing || window.scrollY > 0 || event.target.closest('input, textarea, select, .auth-modal, .workspace-modal, .profile-modal')) return;
+  pullStartY = event.touches[0].clientY;
+  pullDistance = 0;
+  isPulling = true;
+}, { passive: true });
+document.addEventListener('touchmove', event => {
+  if (!isPulling || isRefreshing) return;
+  const distance = Math.max(0, event.touches[0].clientY - pullStartY);
+  if (!distance) return;
+  if (window.scrollY > 0) { resetPullRefresh(); return; }
+  pullDistance = Math.min(distance * .5, 105);
+  pullRefresh.classList.add('show');
+  pullRefresh.classList.toggle('ready', pullDistance >= pullThreshold);
+  pullRefresh.style.transform = `translate(-50%, ${pullDistance - 57}px)`;
+  pullRefreshLabel.textContent = pullDistance >= pullThreshold ? 'RELEASE TO REFRESH' : 'PULL TO REFRESH';
+  if (distance > 10) event.preventDefault();
+}, { passive: false });
+document.addEventListener('touchend', () => {
+  if (!isPulling) return;
+  if (pullDistance >= pullThreshold) refreshFromPull();
+  else resetPullRefresh();
+}, { passive: true });
+document.addEventListener('touchcancel', resetPullRefresh, { passive: true });
 const closeQuickAdd = () => {
   quickSheet.classList.remove('open');
   quickSheet.setAttribute('aria-hidden', 'true');

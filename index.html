@@ -74,11 +74,13 @@
       .management-form{border-radius:3px 14px 3px 14px!important;background:#0c1820!important;border-color:#385563!important;box-shadow:inset 4px 0 0 #2f5964}.management-form h3{color:#d7fff5}.management-form input,.management-form select,.management-form textarea{border-radius:3px!important;border-color:#395563!important;background:#081117!important}.management-form .primary-action,.wide-action{border-radius:4px 11px 4px 11px!important;background:linear-gradient(135deg,#f6bd58,#df8d2d)!important}.cancel-action{border-radius:4px 11px 4px 11px}
       .settings-list button,.settings-list label,.settings-info{border-radius:3px 11px 3px 11px;background:#10212b;border-color:#385563}.settings-mark{border-radius:3px;background:#1a3945;color:#91ffe9}.settings-info{box-shadow:inset 3px 0 #2f5964}
       .bottom-nav{height:84px;padding:12px 5px 8px;background:#09131aeF;border-top-color:#36515d;box-shadow:0 -11px 25px #0008}.nav-item{min-width:48px;font-size:8px;letter-spacing:.2px}.nav-item span{font-size:18px}.nav-item.active{color:#9effe8}.nav-item.active:after{content:"";width:13px;height:2px;background:#59d5be;margin-top:-2px}.fab{right:19px;bottom:98px;width:58px;height:58px;border-radius:16px 4px 16px 4px;border-color:#9affea;background:linear-gradient(145deg,#4ed4bb,#238e80);color:#071417;box-shadow:6px 6px 0 #0a3334!important}.toast{border-radius:4px 10px 4px 10px;background:#91f3de;color:#09201f}
+      .pull-refresh{position:absolute;z-index:5;top:0;left:50%;display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid #426570;border-radius:0 0 9px 9px;background:#112a35;color:#d9fff7;box-shadow:0 7px 18px #0007;transform:translate(-50%,-64px);opacity:0;pointer-events:none;transition:transform .18s ease,opacity .18s ease}.pull-refresh.show{opacity:1}.pull-refresh.ready{border-color:#73e2cc;background:#164239}.pull-refresh-icon{width:19px;height:19px;border:2px solid #86d8ca;border-top-color:transparent;border-radius:50%;transition:transform .15s ease}.pull-refresh.ready .pull-refresh-icon{transform:rotate(180deg);border-color:#a8ffea;border-top-color:transparent}.pull-refresh.refreshing .pull-refresh-icon{animation:refresh-spin .7s linear infinite}@keyframes refresh-spin{to{transform:rotate(360deg)}}.pull-refresh b{font-size:9px;letter-spacing:.7px;white-space:nowrap}
       @media(min-width:600px){.app-shell{border-radius:22px 5px 22px 5px}}
     </style>
   </head>
   <body>
     <main class="app-shell">
+      <div id="pull-refresh" class="pull-refresh" aria-live="polite"><span class="pull-refresh-icon"></span><b id="pull-refresh-label">PULL TO REFRESH</b></div>
       <header class="topbar">
         <button class="avatar" id="profile-button" aria-label="Change profile name"><span id="profile-initials">LM</span></button>
         <div>
@@ -256,7 +258,7 @@
       <form id="profile-form" class="profile-card"><p class="eyebrow">WELCOME TO CONSTRUCTIQ</p><h2>Who is using this device?</h2><p>Your name appears only on this device's app.</p><input id="profile-input" maxlength="50" placeholder="First and last name" required autofocus /><button type="submit">Save my name</button></form>
     </div>
     <div class="toast" id="toast">Material issue started</div>
-    <script src="app.js?v=41"></script>
+    <script src="app.js?v=43"></script>
     <script>
       if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js');
     </script>
