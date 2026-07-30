@@ -26,14 +26,17 @@
       #home-view>.hero-card,#home-view>.metric-grid,#home-view>.section-heading,#home-view>.stock-alert,#home-view>#home-next-job{display:none}.command-deck{border:1px solid #4f606a;background:#0b141c;box-shadow:10px 10px 0 #020608;position:relative;overflow:hidden}.command-deck:before{content:"";position:absolute;inset:0;background:linear-gradient(120deg,transparent 48%,#ff9e1b18 48% 50%,transparent 50%),repeating-linear-gradient(90deg,transparent 0 28px,#ffffff05 29px 30px)}.deck-top,.deck-footer{position:relative;display:flex;justify-content:space-between;padding:10px 13px;font-size:9px;font-weight:900;letter-spacing:1.2px;color:#a7bac4}.deck-top{border-bottom:1px solid #31424d}.deck-footer{border-top:1px solid #31424d;color:#ffcc60}.signal-dot{width:7px;height:7px;border-radius:50%;background:#4ed49b;box-shadow:0 0 10px #4ed49b;margin:2px 7px 0 0}.deck-top span:nth-child(2){margin-right:auto}.deck-body{position:relative;display:flex;justify-content:space-between;align-items:center;padding:18px 15px 16px}.deck-body p{margin:0;color:#9aa9b2;font-size:10px;font-weight:900;letter-spacing:1.3px;line-height:1.2}.deck-body strong{display:block;color:#fff;font-size:54px;letter-spacing:-3px;line-height:.85;margin-top:4px}.deck-body button{border:1px solid #ffb338;background:#ff9e1b;color:#14212a;font-size:11px;font-weight:900;line-height:1.25;text-align:left;padding:13px 17px;box-shadow:5px 5px 0 #593c10}.deck-body b{font-size:17px;float:right;margin-left:9px}.status-rail{display:grid;grid-template-columns:repeat(3,1fr);margin:21px 0;border:1px solid #2e404c;background:#101b25}.status-rail article{padding:12px 10px;border-right:1px solid #2e404c}.status-rail article:last-child{border:0}.status-rail span{color:#a5b4bc;font-size:8px;font-weight:900;letter-spacing:.9px;display:block;line-height:1.2}.status-rail strong{font-size:26px;color:#fff;margin-top:4px;display:block}.status-rail article:last-child strong{color:#ffb84c}.deployment-board{border-left:3px solid #ff9e1b;padding:0 0 0 13px;margin-top:12px}.board-heading{display:flex;justify-content:space-between;align-items:center}.board-heading span{font-size:9px;color:#ffcc60;font-weight:900;letter-spacing:1.5px}.board-heading button{border:0;background:transparent;color:#9fb3bd;font-size:9px;font-weight:900;letter-spacing:1px}.deployment-board h2{font-size:24px;margin:5px 0 4px;color:#fff;letter-spacing:-.8px}.deployment-board .job-card{margin-top:12px}.command-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:25px}.command-actions button{position:relative;text-align:left;min-height:92px;border:1px solid #30434e;background:#12212b;color:#fff;padding:13px 9px 9px}.command-actions button:first-child{border-top:3px solid #ff9e1b}.command-actions button:last-child{border-top:3px solid #4ed49b}.command-actions b{display:block;font-size:10px;letter-spacing:.5px}.command-actions small{display:block;color:#9aabb5;font-size:10px;line-height:1.25;margin-top:9px;width:80%}.command-actions em{position:absolute;right:9px;bottom:8px;color:#ffcc60;font-size:19px;font-style:normal}
       .fab{box-shadow:none!important}.crew-summary-single{grid-template-columns:1fr!important}.crew-summary-single div{display:flex;align-items:baseline;justify-content:space-between}
     </style>
+    <style>
+      .profile-modal{position:fixed;z-index:10;inset:0;background:#020609e8;display:grid;place-items:center;padding:20px}.profile-card{width:min(360px,100%);border:1px solid #ffb338;background:#101e29;padding:23px;box-shadow:9px 9px 0 #000}.profile-card h2{font-size:25px;line-height:1.05;margin:8px 0;color:#fff}.profile-card p:not(.eyebrow){color:#9aa9b2;font-size:13px;line-height:1.45}.profile-card input{width:100%;padding:12px;margin:10px 0;border:1px solid #38505c;background:#071017;color:#fff}.profile-card button{width:100%;padding:12px;border:1px solid #ffb338;background:#ff9e1b;color:#172029;font-weight:900}.profile-modal[hidden]{display:none}
+    </style>
   </head>
   <body>
     <main class="app-shell">
       <header class="topbar">
-        <button class="avatar" aria-label="Open profile">LM</button>
+        <button class="avatar" id="profile-button" aria-label="Change profile name"><span id="profile-initials">LM</span></button>
         <div>
           <p class="eyebrow">WEDNESDAY, JULY 30</p>
-          <h1>Good morning, Logan</h1>
+          <h1>Good morning, <span id="profile-name">Logan</span></h1>
         </div>
         <button class="icon-button" aria-label="Notifications"><span>●</span>♢</button>
       </header>
@@ -132,6 +135,9 @@
         <button class="nav-item" data-target="more"><span>•••</span>More</button>
       </nav>
     </main>
+    <div class="profile-modal" id="profile-modal" hidden>
+      <form id="profile-form" class="profile-card"><p class="eyebrow">WELCOME TO CONSTRUCTIQ</p><h2>Who is using this device?</h2><p>Your name appears only on this device's app.</p><input id="profile-input" maxlength="30" placeholder="First name" required autofocus /><button type="submit">Save my name</button></form>
+    </div>
     <div class="toast" id="toast">Material issue started</div>
     <script src="app.js"></script>
     <script>

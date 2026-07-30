@@ -10,17 +10,43 @@ document.querySelectorAll('[data-target]').forEach(button => button.addEventList
 const dataVersion = 'current-field-data-v2';
 const crewKey = 'current-crews-v2';
 const jobKey = 'current-jobs-v2';
-if (localStorage.getItem(dataVersion) !== 'ready') {
+const profileKey = 'current-profile-name';
+const hadExistingInstall = localStorage.getItem(dataVersion) === 'ready';
+if (!hadExistingInstall) {
   localStorage.removeItem('current-crews');
   localStorage.removeItem(crewKey);
   localStorage.removeItem(jobKey);
   localStorage.setItem(dataVersion, 'ready');
+}
+let profileName = localStorage.getItem(profileKey);
+if (!profileName && hadExistingInstall) {
+  profileName = 'Logan';
+  localStorage.setItem(profileKey, profileName);
 }
 let crews = JSON.parse(localStorage.getItem(crewKey) || '[]');
 let jobs = JSON.parse(localStorage.getItem(jobKey) || '[]');
 let selectedCrewIndex = null;
 const crewColors = ['orange', 'blue', 'green'];
 const initials = name => name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase();
+
+function renderProfile() {
+  document.querySelector('#profile-name').textContent = profileName || 'there';
+  document.querySelector('#profile-initials').textContent = profileName ? initials(profileName) : '?';
+}
+document.querySelector('#profile-button').addEventListener('click', () => {
+  document.querySelector('#profile-input').value = profileName || '';
+  document.querySelector('#profile-modal').hidden = false;
+  document.querySelector('#profile-input').focus();
+});
+document.querySelector('#profile-form').addEventListener('submit', event => {
+  event.preventDefault();
+  const name = document.querySelector('#profile-input').value.trim();
+  if (!name) return;
+  profileName = name;
+  localStorage.setItem(profileKey, profileName);
+  document.querySelector('#profile-modal').hidden = true;
+  renderProfile();
+});
 const escapeHtml = value => String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
 
 function saveData() {
@@ -98,3 +124,5 @@ search?.addEventListener('input', () => { const term = search.value.toLowerCase(
 const toast = document.querySelector('#toast');
 document.querySelector('#add-button').addEventListener('click', () => { toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 2400); });
 render();
+renderProfile();
+if (!profileName) document.querySelector('#profile-modal').hidden = false;
