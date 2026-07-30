@@ -1,5 +1,8 @@
 const views = document.querySelectorAll('.view');
 const navItems = document.querySelectorAll('.nav-item');
+const supabaseUrl = 'https://plzonnnsgbasizvwmfit.supabase.co';
+const supabaseAnonKey = 'sb_publishable_YIuhjQvB3Xypa-AWk9shxw_MvPm3snC';
+const supabaseClient = window.supabase?.createClient(supabaseUrl, supabaseAnonKey);
 const showView = target => {
   views.forEach(view => view.classList.toggle('active', view.id === `${target}-view`));
   navItems.forEach(item => item.classList.toggle('active', item.dataset.target === target));
@@ -53,6 +56,52 @@ document.querySelector('#profile-form').addEventListener('submit', event => {
   localStorage.setItem(profileKey, profileName);
   document.querySelector('#profile-modal').hidden = true;
   renderProfile();
+});
+let isSignUp = false;
+const authModal = document.querySelector('#auth-modal');
+const authMessage = document.querySelector('#auth-message');
+function showAuthMessage(message, isError = false) {
+  authMessage.textContent = message;
+  authMessage.classList.toggle('error', isError);
+}
+function renderAuthMode() {
+  document.querySelector('#auth-title').textContent = isSignUp ? 'Create your account' : 'Sign in to your workspace';
+  document.querySelector('#auth-description').textContent = isSignUp ? 'Create an account with your work email.' : 'Use your work email to access the field command center.';
+  document.querySelector('#auth-name').hidden = !isSignUp;
+  document.querySelector('#auth-name').required = isSignUp;
+  document.querySelector('#auth-password').autocomplete = isSignUp ? 'new-password' : 'current-password';
+  document.querySelector('#auth-submit').textContent = isSignUp ? 'Create account' : 'Sign in';
+  document.querySelector('#auth-toggle').textContent = isSignUp ? 'Already have an account? Sign in' : 'Need an account? Create one';
+  showAuthMessage('');
+}
+function applySignedInUser(user) {
+  profileName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'there';
+  localStorage.setItem(profileKey, profileName);
+  renderProfile();
+  authModal.hidden = true;
+  document.querySelector('#profile-modal').hidden = true;
+}
+async function initializeAuth() {
+  if (!supabaseClient) { showAuthMessage('Sign-in service could not load. Check your connection.', true); authModal.hidden = false; return; }
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (session) applySignedInUser(session.user);
+  else authModal.hidden = false;
+  supabaseClient.auth.onAuthStateChange((_event, session) => { if (session) applySignedInUser(session.user); });
+}
+document.querySelector('#auth-toggle').addEventListener('click', () => { isSignUp = !isSignUp; renderAuthMode(); });
+document.querySelector('#auth-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!supabaseClient) return;
+  const email = document.querySelector('#auth-email').value.trim();
+  const password = document.querySelector('#auth-password').value;
+  const fullName = document.querySelector('#auth-name').value.trim();
+  showAuthMessage(isSignUp ? 'Creating account…' : 'Signing in…');
+  const result = isSignUp
+    ? await supabaseClient.auth.signUp({ email, password, options: { data: { full_name: fullName } } })
+    : await supabaseClient.auth.signInWithPassword({ email, password });
+  if (result.error) { showAuthMessage(result.error.message, true); return; }
+  if (isSignUp && !result.data.session) showAuthMessage('Check your email to confirm your account, then sign in.');
+  else if (result.data.user) applySignedInUser(result.data.user);
 });
 const escapeHtml = value => String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
 
@@ -235,4 +284,5 @@ document.querySelector('#photo-input').addEventListener('change', event => {
 });
 render();
 renderProfile();
-if (!profileName) document.querySelector('#profile-modal').hidden = false;
+renderAuthMode();
+initializeAuth();
