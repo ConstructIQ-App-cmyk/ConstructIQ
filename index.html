@@ -35,6 +35,7 @@
       .settings-list{display:grid;gap:8px;margin:0 0 21px}.settings-list button,.settings-list label,.settings-info{width:100%;display:flex;align-items:center;gap:11px;text-align:left;background:#111f29;border:1px solid #30434e;color:#fff;padding:12px}.settings-list b,.settings-list small{display:block}.settings-list b{font-size:13px}.settings-list small{font-size:10px;color:#a3b3bb;margin-top:3px}.settings-mark{width:31px;height:31px;display:grid;place-items:center;background:#263b45;color:#ffcc60;font-size:11px;font-weight:900}.settings-list em{margin-left:auto;color:#ffcc60;font-style:normal;font-size:22px}.settings-list input{margin-left:auto;accent-color:#ff9e1b;width:18px;height:18px}.settings-info{cursor:default}
       .detail-location{margin:6px 0 0;color:#a5b4bc;font-size:12px}.inspection-heading{display:flex;align-items:end;justify-content:space-between;border-left:3px solid #ff9e1b;padding-left:11px}.inspection-heading h3{margin:4px 0 0;color:#fff;font-size:21px}.inspection-heading>span{font-size:13px;font-weight:900;color:#ffcc60}.inspection-note{color:#a3b3bb;font-size:11px;line-height:1.4;margin:13px 0}.inspection-list{display:grid;gap:7px}.inspection-item{display:flex;align-items:center;gap:10px;background:#111f29;border:1px solid #30434e;padding:12px;color:#f3f6f7;font-size:12px;font-weight:700}.inspection-item input{position:absolute;opacity:0}.inspection-item span{width:20px;height:20px;border:1px solid #526672;background:#0a141c;flex:none}.inspection-item input:checked+span{background:#4ed49b;border-color:#4ed49b;box-shadow:inset 0 0 0 4px #0e2028}.inspection-item input:checked~b{text-decoration:line-through;color:#9aabb5}.custom-inspection-form{display:flex;margin-top:12px}.custom-inspection-form input{min-width:0;flex:1;background:#0b151d;border:1px solid #384b56;color:#fff;padding:11px;font-size:12px}.custom-inspection-form button{border:1px solid #ffb338;background:#ff9e1b;color:#172029;padding:0 14px;font-weight:900}
       .remove-inspection-button{margin-left:auto;width:25px;height:25px;border:1px solid #70403d;background:#281718;color:#ff9d92;font-size:18px;line-height:18px;flex:none}.inspection-item:has(.remove-inspection-button){cursor:default}
+      .form-actions{display:flex;gap:8px}.form-actions .primary-action{width:auto!important;flex:1}.cancel-action,.cancel-inline-action{border:1px solid #536671;background:#172731;color:#c1d0d6;font-size:12px;font-weight:800;padding:10px 13px}.custom-inspection-form .cancel-inline-action{border-color:#536671;background:#172731;color:#c1d0d6;padding:0 11px}
     </style>
     <style>
       .auth-modal{position:fixed;z-index:30;inset:0;background:#020609f2;display:grid;place-items:center;padding:20px}.auth-modal[hidden]{display:none}.auth-card{width:min(370px,100%);border:1px solid #ffb338;background:#101e29;padding:25px;box-shadow:10px 10px 0 #000}.auth-card h2{font-size:26px;line-height:1.05;color:#fff;margin:8px 0}.auth-card p:not(.eyebrow){font-size:13px;color:#a8b6be;line-height:1.45}.auth-card input{width:100%;padding:12px;margin:5px 0;border:1px solid #38505c;background:#071017;color:#fff}.auth-card button{width:100%;padding:12px;margin-top:8px;border:1px solid #ffb338;background:#ff9e1b;color:#172029;font-weight:900}.auth-card #auth-toggle{background:transparent;border-color:#41535e;color:#c7d2d8}.auth-message{min-height:18px!important;margin:7px 0 0!important;color:#a7f0d4!important;font-size:11px!important}.auth-message.error{color:#ff9d92!important}
@@ -90,7 +91,7 @@
         <div class="page-heading"><p class="eyebrow">FIELD OPERATIONS</p><h2>Job board</h2></div>
         <button class="primary-action wide-action" id="show-job-form">+ Add job</button>
         <form class="management-form" id="job-form" hidden>
-          <h3 id="job-form-title">New job</h3><input id="job-name" maxlength="50" placeholder="Job name" required /><select id="job-type" required><option value="" disabled selected>Select job type</option><option>Commercial Jobs</option><option>Service</option><option>Generators</option><option>Generator Service</option></select><input id="job-location" maxlength="60" placeholder="Job location" required /><input id="job-due" type="date" required /><button class="primary-action" id="job-submit" type="submit">Create job</button>
+          <h3 id="job-form-title">New job</h3><input id="job-name" maxlength="50" placeholder="Job name" required /><select id="job-type" required><option value="" disabled selected>Select job type</option><option>Commercial Jobs</option><option>Service</option><option>Generators</option><option>Generator Service</option></select><input id="job-location" maxlength="60" placeholder="Job location" required /><input id="job-due" type="date" required /><div class="form-actions"><button class="primary-action" id="job-submit" type="submit">Create job</button><button class="cancel-action" data-cancel-form="job-form" type="button">Cancel</button></div>
         </form>
         <div id="job-list"></div>
       </section>
@@ -102,7 +103,7 @@
           <div class="inspection-heading"><div><p class="eyebrow">COMMERCIAL INSPECTIONS</p><h3>Inspection checklist</h3></div><span id="inspection-progress">0/0</span></div>
           <p class="inspection-note">Confirm requirements with your local authority having jurisdiction (AHJ).</p>
           <div id="inspection-list" class="inspection-list"></div>
-          <form id="custom-inspection-form" class="custom-inspection-form"><input id="custom-inspection-name" maxlength="70" placeholder="Add inspection or correction item" required /><button type="submit">Add</button></form>
+          <form id="custom-inspection-form" class="custom-inspection-form"><input id="custom-inspection-name" maxlength="70" placeholder="Add inspection or correction item" required /><button type="submit">Add</button><button class="cancel-inline-action" data-cancel-form="custom-inspection-form" data-cancel-mode="reset" type="button">Cancel</button></form>
         </section>
         <section id="non-commercial-panel" class="empty-state"><b>Inspection checklist is available for Commercial Jobs.</b><br />Set this job’s type to Commercial Jobs to use the inspection workflow.</section>
       </section>
@@ -110,7 +111,7 @@
       <section id="inventory-view" class="view">
         <div class="page-heading"><p class="eyebrow">STOCKROOM</p><h2>Inventory</h2></div>
         <label class="search"><span>⌕</span><input id="stock-search" placeholder="Search materials or SKU" /></label>
-        <form class="management-form" id="issue-form" hidden><h3>Issue material</h3><input id="issue-material" maxlength="50" placeholder="Material name" required /><input id="issue-quantity" type="number" min="1" placeholder="Quantity issued" required /><button class="primary-action" type="submit">Record issue</button></form>
+        <form class="management-form" id="issue-form" hidden><h3>Issue material</h3><input id="issue-material" maxlength="50" placeholder="Material name" required /><input id="issue-quantity" type="number" min="1" placeholder="Quantity issued" required /><div class="form-actions"><button class="primary-action" type="submit">Record issue</button><button class="cancel-action" data-cancel-form="issue-form" type="button">Cancel</button></div></form>
         <div class="inventory-summary"><div><strong>128</strong><span>SKUs in stock</span></div><div class="critical"><strong>4</strong><span>Need attention</span></div></div>
         <div class="inventory-list" id="inventory-list">
           <article class="inventory-item low" data-name="3/4 in EMT conduit"><div class="material-icon">≡</div><div><h3>3/4 in. EMT conduit</h3><p>EMT-075 · Main stockroom</p></div><div class="quantity"><strong>42</strong><span>Low · min 60</span></div></article>
@@ -142,10 +143,10 @@
         <section class="crew-summary crew-summary-single"><div><strong id="crew-count">00</strong><span>Active crews</span></div></section>
         <div class="team-actions"><button class="secondary-action" id="show-member-form">+ Add member</button><button class="primary-action" id="show-team-form">+ Add crew</button></div>
         <form class="management-form" id="team-form" hidden>
-          <h3>New crew</h3><input id="team-name" maxlength="28" placeholder="Crew name (e.g. Service Crew)" required /><button class="primary-action" type="submit">Create crew</button>
+          <h3>New crew</h3><input id="team-name" maxlength="28" placeholder="Crew name (e.g. Service Crew)" required /><div class="form-actions"><button class="primary-action" type="submit">Create crew</button><button class="cancel-action" data-cancel-form="team-form" type="button">Cancel</button></div>
         </form>
         <form class="management-form" id="member-form" hidden>
-          <h3>Add crew member</h3><input id="member-name" maxlength="40" placeholder="Full name" required /><input id="member-role" maxlength="28" placeholder="Role (e.g. Journeyman)" required /><select id="member-crew" required></select><button class="primary-action" type="submit">Add member</button>
+          <h3>Add crew member</h3><input id="member-name" maxlength="40" placeholder="Full name" required /><input id="member-role" maxlength="28" placeholder="Role (e.g. Journeyman)" required /><select id="member-crew" required></select><div class="form-actions"><button class="primary-action" type="submit">Add member</button><button class="cancel-action" data-cancel-form="member-form" type="button">Cancel</button></div>
         </form>
         <p class="list-label">ACTIVE CREWS</p>
         <div id="crew-list"></div>
@@ -156,7 +157,7 @@
         <div class="page-heading"><p class="eyebrow">ACTIVE CREW</p><h2 id="crew-detail-name">Crew</h2></div>
         <div id="crew-detail-members" class="member-list"></div>
         <form class="management-form" id="crew-member-form">
-          <h3>Add a member to this crew</h3><input id="crew-member-name" maxlength="40" placeholder="Full name" required /><input id="crew-member-role" maxlength="28" placeholder="Role (e.g. Journeyman)" required /><button class="primary-action" type="submit">Add member</button>
+          <h3>Add a member to this crew</h3><input id="crew-member-name" maxlength="40" placeholder="Full name" required /><input id="crew-member-role" maxlength="28" placeholder="Role (e.g. Journeyman)" required /><div class="form-actions"><button class="primary-action" type="submit">Add member</button><button class="cancel-action" data-cancel-form="crew-member-form" data-cancel-mode="reset" type="button">Cancel</button></div>
         </form>
         <form class="management-form assignment-form" id="crew-assignment-form">
           <h3>Assign to a job</h3><select id="crew-job-select"></select><button class="primary-action" type="submit">Save assignment</button>

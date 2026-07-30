@@ -219,6 +219,12 @@ function openJobForm(job = null) {
   document.querySelector('#job-due').value = job?.due || '';
 }
 document.querySelector('#show-job-form').addEventListener('click', () => openJobForm());
+document.querySelectorAll('[data-cancel-form]').forEach(button => button.addEventListener('click', () => {
+  const form = document.querySelector(`#${button.dataset.cancelForm}`);
+  form.reset();
+  if (button.dataset.cancelForm === 'job-form') editingJobId = null;
+  if (button.dataset.cancelMode !== 'reset') form.hidden = true;
+}));
 document.querySelector('#job-list').addEventListener('click', event => {
   const button = event.target.closest('[data-edit-job]');
   if (button) { openJobForm(jobs.find(job => job.id === button.dataset.editJob)); return; }
