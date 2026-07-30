@@ -10,6 +10,12 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <title>Current — Electrical Field Operations</title>
     <link rel="stylesheet" href="styles.css" />
+    <style>
+      .team-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:-6px 0 16px}.primary-action,.secondary-action{border-radius:9px;padding:10px 8px;font-size:12px;font-weight:800;cursor:pointer}.primary-action{background:#0a1f2f;color:#fff;border:1px solid #0a1f2f}.secondary-action{background:#fff;color:#39755f;border:1px solid #b9d3c6}.management-form{background:#f2f6f3;border-radius:12px;padding:14px;margin:-4px 0 18px}.management-form h3{font-size:14px;margin:0 0 11px}.management-form input,.management-form select{display:block;width:100%;border:1px solid #d8e1dc;border-radius:8px;background:#fff;padding:11px;margin:0 0 9px;font-size:13px}.management-form .primary-action{width:100%}
+    </style>
+    <style>
+      .back-button{border:0;background:transparent;color:#39755f;font-size:13px;font-weight:700;padding:0;margin:5px 0 17px}.crew-summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:23px}.crew-summary div{background:#f2f6f3;border-radius:12px;padding:14px}.crew-summary strong{font-size:23px;display:block}.crew-summary span{font-size:11px;color:#6c7881}.list-label{font-size:10px;font-weight:800;letter-spacing:1px;color:#738087;margin:0 0 9px}.crew-card{display:flex;align-items:center;border:1px solid #e5e9e7;border-radius:13px;padding:12px;margin-top:9px}.crew-badge{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;color:#fff;font-size:16px;font-weight:800;margin-right:11px}.crew-badge.orange{background:#f0a13a}.crew-badge.blue{background:#5786bb}.crew-badge.green{background:#4caa81}.crew-info{flex:1}.crew-info h3{font-size:14px;margin:0 0 3px}.crew-info p{color:#6c7881;font-size:11px;margin:0}.status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#43a77d;margin:0 0 1px 3px}.avatars{display:flex;margin-top:8px}.avatars span{background:#dce9e3;color:#356c58;width:21px;height:21px;border:2px solid #fff;border-radius:50%;display:grid;place-items:center;font-size:7px;font-weight:800;margin-right:-5px}
+    </style>
   </head>
   <body>
     <main class="app-shell">
@@ -71,7 +77,22 @@
 
       <section id="more-view" class="view">
         <div class="page-heading"><p class="eyebrow">WORKSPACE</p><h2>More tools</h2></div>
-        <div class="tool-list"><button>Team & crews <span>›</span></button><button>Reports <span>›</span></button><button>Settings <span>›</span></button></div>
+        <div class="tool-list"><button data-target="teams">Team & crews <span>›</span></button><button>Reports <span>›</span></button><button>Settings <span>›</span></button></div>
+      </section>
+
+      <section id="teams-view" class="view">
+        <button class="back-button" data-target="more">&lsaquo; Back</button>
+        <div class="page-heading"><p class="eyebrow">PEOPLE &amp; ASSIGNMENTS</p><h2>Team &amp; crews</h2></div>
+        <section class="crew-summary"><div><strong id="field-count">08</strong><span>In the field</span></div><div><strong id="crew-count">03</strong><span>Active crews</span></div></section>
+        <div class="team-actions"><button class="secondary-action" id="show-member-form">+ Add member</button><button class="primary-action" id="show-team-form">+ Add crew</button></div>
+        <form class="management-form" id="team-form" hidden>
+          <h3>New crew</h3><input id="team-name" maxlength="28" placeholder="Crew name (e.g. Service Crew)" required /><button class="primary-action" type="submit">Create crew</button>
+        </form>
+        <form class="management-form" id="member-form" hidden>
+          <h3>Add crew member</h3><input id="member-name" maxlength="40" placeholder="Full name" required /><input id="member-role" maxlength="28" placeholder="Role (e.g. Journeyman)" required /><select id="member-crew" required></select><button class="primary-action" type="submit">Add member</button>
+        </form>
+        <p class="list-label">ACTIVE CREWS</p>
+        <div id="crew-list"></div>
       </section>
 
       <button class="fab" id="add-button" aria-label="Add item">+</button>
