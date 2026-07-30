@@ -26,6 +26,7 @@ if (!profileName && hadExistingInstall) {
 let crews = JSON.parse(localStorage.getItem(crewKey) || '[]');
 let jobs = JSON.parse(localStorage.getItem(jobKey) || '[]');
 let selectedCrewIndex = null;
+let editingJobId = null;
 const crewColors = ['orange', 'blue', 'green'];
 const initials = name => name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase();
 
@@ -71,6 +72,16 @@ function renderJobs() {
     const assigned = crews.filter(crew => crew.jobId === job.id).map(crew => crew.name).join(', ') || 'No crew assigned';
     return `<article class="job-card"><div class="job-color blue"></div><div class="job-content"><p class="job-meta">DUE ${new Date(`${job.due}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase()}</p><h3>${escapeHtml(job.name)}</h3><p>${escapeHtml(job.location)} · ${escapeHtml(assigned)}</p><div class="progress"><span style="width:0%"></span></div></div></article>`;
   }).join('') : '<p class="empty-state">No jobs yet. Add your first job to start assigning crews.</p>';
+  list.querySelectorAll('.job-card').forEach((card, index) => {
+    const job = jobs[index];
+    const meta = card.querySelector('.job-meta');
+    meta.textContent = `${job.type || 'Commercial Jobs'} · ${meta.textContent}`;
+    const editButton = document.createElement('button');
+    editButton.className = 'edit-job-button';
+    editButton.dataset.editJob = job.id;
+    editButton.textContent = 'EDIT';
+    card.append(editButton);
+  });
   const homeNext = document.querySelector('#home-next-job');
   homeNext.innerHTML = jobs.length ? `<article class="job-card" data-target="jobs"><div class="job-color blue"></div><div class="job-content"><p class="job-meta">UP NEXT</p><h3>${escapeHtml(jobs[0].name)}</h3><p>${escapeHtml(jobs[0].location)}</p><div class="progress"><span style="width:0%"></span></div></div><span class="chevron">›</span></article>` : '<p class="empty-state home-empty">No jobs created yet.</p>';
   homeNext.querySelector('[data-target]')?.addEventListener('click', () => showView('jobs'));
@@ -101,7 +112,22 @@ document.querySelector('#show-member-form').addEventListener('click', () => {
   document.querySelector('#member-form').hidden = !document.querySelector('#member-form').hidden;
   document.querySelector('#team-form').hidden = true;
 });
-document.querySelector('#show-job-form').addEventListener('click', () => document.querySelector('#job-form').hidden = !document.querySelector('#job-form').hidden);
+function openJobForm(job = null) {
+  editingJobId = job?.id || null;
+  const form = document.querySelector('#job-form');
+  form.hidden = false;
+  document.querySelector('#job-form-title').textContent = job ? 'Edit job' : 'New job';
+  document.querySelector('#job-submit').textContent = job ? 'Save changes' : 'Create job';
+  document.querySelector('#job-name').value = job?.name || '';
+  document.querySelector('#job-type').value = job?.type || '';
+  document.querySelector('#job-location').value = job?.location || '';
+  document.querySelector('#job-due').value = job?.due || '';
+}
+document.querySelector('#show-job-form').addEventListener('click', () => openJobForm());
+document.querySelector('#job-list').addEventListener('click', event => {
+  const button = event.target.closest('[data-edit-job]');
+  if (button) openJobForm(jobs.find(job => job.id === button.dataset.editJob));
+});
 document.querySelector('#team-form').addEventListener('submit', event => {
   event.preventDefault(); const name = document.querySelector('#team-name').value.trim(); if (!name) return;
   crews.push({ name, color: crewColors[crews.length % crewColors.length], members: [], jobId: '', jobName: '' }); event.currentTarget.reset(); event.currentTarget.hidden = true; saveData();
@@ -111,8 +137,14 @@ document.querySelector('#member-form').addEventListener('submit', event => {
   if (!name || !role || !crews[crewIndex]) return; crews[crewIndex].members.push({ name, role }); event.currentTarget.reset(); event.currentTarget.hidden = true; saveData();
 });
 document.querySelector('#job-form').addEventListener('submit', event => {
-  event.preventDefault(); const name = document.querySelector('#job-name').value.trim(); const location = document.querySelector('#job-location').value.trim(); const due = document.querySelector('#job-due').value;
-  if (!name || !location || !due) return; jobs.push({ id: `${Date.now()}`, name, location, due }); event.currentTarget.reset(); event.currentTarget.hidden = true; saveData();
+  event.preventDefault(); const name = document.querySelector('#job-name').value.trim(); const type = document.querySelector('#job-type').value; const location = document.querySelector('#job-location').value.trim(); const due = document.querySelector('#job-due').value;
+  if (!name || !type || !location || !due) return;
+  if (editingJobId) {
+    const job = jobs.find(item => item.id === editingJobId);
+    if (job) Object.assign(job, { name, type, location, due });
+    crews.forEach(crew => { if (crew.jobId === editingJobId) crew.jobName = name; });
+  } else jobs.push({ id: `${Date.now()}`, name, type, location, due });
+  editingJobId = null; event.currentTarget.reset(); event.currentTarget.hidden = true; saveData();
 });
 document.querySelector('#crew-assignment-form').addEventListener('submit', event => {
   event.preventDefault(); if (selectedCrewIndex === null) return; const jobId = document.querySelector('#crew-job-select').value; const job = jobs.find(item => item.id === jobId);

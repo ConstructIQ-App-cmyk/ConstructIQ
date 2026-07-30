@@ -28,6 +28,7 @@
     </style>
     <style>
       .profile-modal{position:fixed;z-index:10;inset:0;background:#020609e8;display:grid;place-items:center;padding:20px}.profile-card{width:min(360px,100%);border:1px solid #ffb338;background:#101e29;padding:23px;box-shadow:9px 9px 0 #000}.profile-card h2{font-size:25px;line-height:1.05;margin:8px 0;color:#fff}.profile-card p:not(.eyebrow){color:#9aa9b2;font-size:13px;line-height:1.45}.profile-card input{width:100%;padding:12px;margin:10px 0;border:1px solid #38505c;background:#071017;color:#fff}.profile-card button{width:100%;padding:12px;border:1px solid #ffb338;background:#ff9e1b;color:#172029;font-weight:900}.profile-modal[hidden]{display:none}
+      .edit-job-button{align-self:center;margin:0 11px 0 0;border:1px solid #5a6870;background:#172731;color:#ffcc60;padding:7px 8px;font-size:9px;font-weight:900;letter-spacing:.8px}
     </style>
   </head>
   <body>
@@ -80,7 +81,7 @@
         <div class="page-heading"><p class="eyebrow">FIELD OPERATIONS</p><h2>Job board</h2></div>
         <button class="primary-action wide-action" id="show-job-form">+ Add job</button>
         <form class="management-form" id="job-form" hidden>
-          <h3>New job</h3><input id="job-name" maxlength="50" placeholder="Job name" required /><input id="job-location" maxlength="60" placeholder="Job location" required /><input id="job-due" type="date" required /><button class="primary-action" type="submit">Create job</button>
+          <h3 id="job-form-title">New job</h3><input id="job-name" maxlength="50" placeholder="Job name" required /><select id="job-type" required><option value="" disabled selected>Select job type</option><option>Commercial Jobs</option><option>Service</option><option>Generators</option><option>Generator Service</option></select><input id="job-location" maxlength="60" placeholder="Job location" required /><input id="job-due" type="date" required /><button class="primary-action" id="job-submit" type="submit">Create job</button>
         </form>
         <div id="job-list"></div>
       </section>
