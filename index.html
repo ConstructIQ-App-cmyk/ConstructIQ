@@ -31,6 +31,7 @@
       .edit-job-button{align-self:center;margin:0 11px 0 0;border:1px solid #5a6870;background:#172731;color:#ffcc60;padding:7px 8px;font-size:9px;font-weight:900;letter-spacing:.8px}
       .remove-member-button{margin-left:auto;border:1px solid #74423e;background:#2b1a1a;color:#ff9d92;padding:6px 7px;font-size:8px;font-weight:900;letter-spacing:.7px}.delete-crew-button{width:100%;margin-top:12px;border:1px solid #85443f;background:#281717;color:#ff9d92;padding:12px;font-size:12px;font-weight:900}
       .quick-add-overlay{position:fixed;z-index:20;inset:0;background:#020609a6;opacity:0;transition:opacity .25s ease}.quick-add-overlay.open{opacity:1}.quick-add-sheet{position:fixed;z-index:21;left:0;right:0;bottom:0;max-width:480px;margin:auto;padding:10px 16px 27px;background:#101e29;border:1px solid #3b4e5a;transform:translateY(105%);transition:transform .34s cubic-bezier(.2,.8,.2,1);box-shadow:0 -20px 45px #0008}.quick-add-sheet.open{transform:translateY(0)}.sheet-handle{width:38px;height:4px;background:#60727c;border-radius:3px;margin:0 auto 16px}.sheet-heading{display:flex;justify-content:space-between;align-items:start;margin-bottom:11px}.sheet-heading h2{font-size:21px;color:#fff;margin:4px 0 0}.sheet-heading button{border:1px solid #41535e;background:#172731;color:#fff;width:31px;height:31px;font-size:22px;line-height:1}.quick-add-sheet>button[data-quick-action]{width:100%;display:flex;align-items:center;gap:11px;text-align:left;background:#142630;border:1px solid #304550;color:#fff;padding:11px;margin-top:7px}.quick-add-sheet>button[data-quick-action]>span{width:32px;height:32px;display:grid;place-items:center;background:#263c46;color:#ffcc60;font-size:13px;font-weight:900}.quick-add-sheet b,.quick-add-sheet small{display:block}.quick-add-sheet b{font-size:13px}.quick-add-sheet small{font-size:10px;color:#a3b3bb;margin-top:2px}.quick-add-sheet em{margin-left:auto;color:#ffcc60;font-size:20px;font-style:normal}
+      .settings-list{display:grid;gap:8px;margin:0 0 21px}.settings-list button,.settings-list label,.settings-info{width:100%;display:flex;align-items:center;gap:11px;text-align:left;background:#111f29;border:1px solid #30434e;color:#fff;padding:12px}.settings-list b,.settings-list small{display:block}.settings-list b{font-size:13px}.settings-list small{font-size:10px;color:#a3b3bb;margin-top:3px}.settings-mark{width:31px;height:31px;display:grid;place-items:center;background:#263b45;color:#ffcc60;font-size:11px;font-weight:900}.settings-list em{margin-left:auto;color:#ffcc60;font-style:normal;font-size:22px}.settings-list input{margin-left:auto;accent-color:#ff9e1b;width:18px;height:18px}.settings-info{cursor:default}
     </style>
   </head>
   <body>
@@ -41,7 +42,7 @@
           <p class="eyebrow">WEDNESDAY, JULY 30</p>
           <h1>Good morning, <span id="profile-name">Logan</span></h1>
         </div>
-        <button class="icon-button" aria-label="Notifications"><span>●</span>♢</button>
+        <button class="icon-button" aria-label="Open settings" data-target="settings">&#9881;</button>
       </header>
 
       <section id="home-view" class="view active">
@@ -103,7 +104,18 @@
 
       <section id="more-view" class="view">
         <div class="page-heading"><p class="eyebrow">WORKSPACE</p><h2>More tools</h2></div>
-        <div class="tool-list"><button>Reports <span>›</span></button><button>Settings <span>›</span></button></div>
+        <div class="tool-list"><button>Reports <span>›</span></button><button data-target="settings">Settings <span>›</span></button></div>
+      </section>
+
+      <section id="settings-view" class="view">
+        <button class="back-button" data-target="home">&lsaquo; Home</button>
+        <div class="page-heading"><p class="eyebrow">APP CONTROL</p><h2>Settings</h2></div>
+        <p class="list-label">YOUR ACCOUNT</p>
+        <div class="settings-list"><button id="settings-profile"><span class="settings-mark">P</span><div><b>Profile name</b><small id="settings-profile-name">Logan</small></div><em>›</em></button></div>
+        <p class="list-label">PREFERENCES</p>
+        <div class="settings-list"><label><span class="settings-mark">N</span><div><b>Notifications</b><small>Job and inventory alerts</small></div><input type="checkbox" checked /></label><label><span class="settings-mark">D</span><div><b>Field command mode</b><small>High-contrast interface</small></div><input type="checkbox" checked /></label></div>
+        <p class="list-label">DEVICE</p>
+        <div class="settings-list"><div class="settings-info"><span class="settings-mark">S</span><div><b>Local app data</b><small>Jobs and crews are stored on this device</small></div></div><div class="settings-info"><span class="settings-mark">V</span><div><b>Current</b><small>Version 1.0 · Offline-ready</small></div></div></div>
       </section>
 
       <section id="teams-view" class="view">

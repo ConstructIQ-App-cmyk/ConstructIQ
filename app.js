@@ -33,8 +33,14 @@ const initials = name => name.split(' ').map(part => part[0]).join('').slice(0, 
 function renderProfile() {
   document.querySelector('#profile-name').textContent = profileName || 'there';
   document.querySelector('#profile-initials').textContent = profileName ? initials(profileName) : '?';
+  document.querySelector('#settings-profile-name').textContent = profileName || 'Not set';
 }
 document.querySelector('#profile-button').addEventListener('click', () => {
+  document.querySelector('#profile-input').value = profileName || '';
+  document.querySelector('#profile-modal').hidden = false;
+  document.querySelector('#profile-input').focus();
+});
+document.querySelector('#settings-profile').addEventListener('click', () => {
   document.querySelector('#profile-input').value = profileName || '';
   document.querySelector('#profile-modal').hidden = false;
   document.querySelector('#profile-input').focus();
