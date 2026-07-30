@@ -158,7 +158,7 @@ function renderInspectionChecklist(job) {
   const inspections = job.inspections || [];
   const complete = inspections.filter(item => item.completed).length;
   document.querySelector('#inspection-progress').textContent = `${complete}/${inspections.length}`;
-  document.querySelector('#inspection-list').innerHTML = inspections.map(item => `<label class="inspection-item"><input type="checkbox" data-inspection-id="${item.id}" ${item.completed ? 'checked' : ''} /><span></span><b>${escapeHtml(item.name)}</b></label>`).join('');
+  document.querySelector('#inspection-list').innerHTML = inspections.map(item => `<label class="inspection-item"><input type="checkbox" data-inspection-id="${item.id}" ${item.completed ? 'checked' : ''} /><span></span><b>${escapeHtml(item.name)}</b><button type="button" class="remove-inspection-button" data-remove-inspection="${item.id}" aria-label="Delete ${escapeHtml(item.name)}">&times;</button></label>`).join('');
 }
 function openJob(job) {
   if (!job) return;
@@ -262,6 +262,17 @@ document.querySelector('#inspection-list').addEventListener('change', event => {
   const item = job.inspections.find(inspection => inspection.id === checkbox.dataset.inspectionId);
   if (!item) return;
   item.completed = checkbox.checked;
+  saveData();
+  renderInspectionChecklist(job);
+});
+document.querySelector('#inspection-list').addEventListener('click', event => {
+  const button = event.target.closest('[data-remove-inspection]');
+  const job = jobs.find(item => item.id === selectedJobId);
+  if (!button || !job) return;
+  event.preventDefault();
+  event.stopPropagation();
+  if (!confirm('Delete this inspection item?')) return;
+  job.inspections = job.inspections.filter(item => item.id !== button.dataset.removeInspection);
   saveData();
   renderInspectionChecklist(job);
 });
