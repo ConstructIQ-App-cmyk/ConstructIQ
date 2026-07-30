@@ -96,13 +96,23 @@ function openCrew(index) {
   selectedCrewIndex = index;
   const crew = crews[index];
   document.querySelector('#crew-detail-name').textContent = crew.name;
-  document.querySelector('#crew-detail-members').innerHTML = crew.members.length ? crew.members.map(member => `<div class="member-row"><span>${initials(member.name)}</span><div><strong>${escapeHtml(member.name)}</strong><small>${escapeHtml(member.role)}</small></div></div>`).join('') : '<p class="empty-state">No members assigned to this crew.</p>';
+  document.querySelector('#crew-detail-members').innerHTML = crew.members.length ? crew.members.map((member, index) => `<div class="member-row"><span>${initials(member.name)}</span><div><strong>${escapeHtml(member.name)}</strong><small>${escapeHtml(member.role)}</small></div><button class="remove-member-button" data-remove-member="${index}">REMOVE</button></div>`).join('') : '<p class="empty-state">No members assigned to this crew.</p>';
   document.querySelector('#crew-job-select').innerHTML = `<option value="">Unassigned</option>${jobs.map(job => `<option value="${job.id}" ${crew.jobId === job.id ? 'selected' : ''}>${escapeHtml(job.name)}</option>`).join('')}`;
+  document.querySelector('#crew-member-form').reset();
   showView('crew-detail');
 }
 document.querySelector('#crew-list').addEventListener('click', event => {
   const card = event.target.closest('[data-crew-index]');
   if (card) openCrew(Number(card.dataset.crewIndex));
+});
+document.querySelector('#crew-detail-members').addEventListener('click', event => {
+  const button = event.target.closest('[data-remove-member]');
+  if (!button || selectedCrewIndex === null) return;
+  if (confirm('Remove this member from the crew?')) {
+    crews[selectedCrewIndex].members.splice(Number(button.dataset.removeMember), 1);
+    saveData();
+    openCrew(selectedCrewIndex);
+  }
 });
 document.querySelector('#show-team-form').addEventListener('click', () => {
   document.querySelector('#team-form').hidden = !document.querySelector('#team-form').hidden;
@@ -136,6 +146,15 @@ document.querySelector('#member-form').addEventListener('submit', event => {
   event.preventDefault(); const name = document.querySelector('#member-name').value.trim(); const role = document.querySelector('#member-role').value.trim(); const crewIndex = Number(document.querySelector('#member-crew').value);
   if (!name || !role || !crews[crewIndex]) return; crews[crewIndex].members.push({ name, role }); event.currentTarget.reset(); event.currentTarget.hidden = true; saveData();
 });
+document.querySelector('#crew-member-form').addEventListener('submit', event => {
+  event.preventDefault();
+  const name = document.querySelector('#crew-member-name').value.trim();
+  const role = document.querySelector('#crew-member-role').value.trim();
+  if (!name || !role || selectedCrewIndex === null) return;
+  crews[selectedCrewIndex].members.push({ name, role });
+  saveData();
+  openCrew(selectedCrewIndex);
+});
 document.querySelector('#job-form').addEventListener('submit', event => {
   event.preventDefault(); const name = document.querySelector('#job-name').value.trim(); const type = document.querySelector('#job-type').value; const location = document.querySelector('#job-location').value.trim(); const due = document.querySelector('#job-due').value;
   if (!name || !type || !location || !due) return;
@@ -149,6 +168,13 @@ document.querySelector('#job-form').addEventListener('submit', event => {
 document.querySelector('#crew-assignment-form').addEventListener('submit', event => {
   event.preventDefault(); if (selectedCrewIndex === null) return; const jobId = document.querySelector('#crew-job-select').value; const job = jobs.find(item => item.id === jobId);
   crews[selectedCrewIndex].jobId = jobId; crews[selectedCrewIndex].jobName = job ? job.name : ''; saveData(); showView('teams');
+});
+document.querySelector('#delete-crew-button').addEventListener('click', () => {
+  if (selectedCrewIndex === null || !confirm(`Delete ${crews[selectedCrewIndex].name}? This cannot be undone.`)) return;
+  crews.splice(selectedCrewIndex, 1);
+  selectedCrewIndex = null;
+  saveData();
+  showView('teams');
 });
 document.querySelectorAll('.filter').forEach(filter => filter.addEventListener('click', () => { document.querySelectorAll('.filter').forEach(item => item.classList.remove('active')); filter.classList.add('active'); }));
 const search = document.querySelector('#stock-search');

@@ -29,6 +29,7 @@
     <style>
       .profile-modal{position:fixed;z-index:10;inset:0;background:#020609e8;display:grid;place-items:center;padding:20px}.profile-card{width:min(360px,100%);border:1px solid #ffb338;background:#101e29;padding:23px;box-shadow:9px 9px 0 #000}.profile-card h2{font-size:25px;line-height:1.05;margin:8px 0;color:#fff}.profile-card p:not(.eyebrow){color:#9aa9b2;font-size:13px;line-height:1.45}.profile-card input{width:100%;padding:12px;margin:10px 0;border:1px solid #38505c;background:#071017;color:#fff}.profile-card button{width:100%;padding:12px;border:1px solid #ffb338;background:#ff9e1b;color:#172029;font-weight:900}.profile-modal[hidden]{display:none}
       .edit-job-button{align-self:center;margin:0 11px 0 0;border:1px solid #5a6870;background:#172731;color:#ffcc60;padding:7px 8px;font-size:9px;font-weight:900;letter-spacing:.8px}
+      .remove-member-button{margin-left:auto;border:1px solid #74423e;background:#2b1a1a;color:#ff9d92;padding:6px 7px;font-size:8px;font-weight:900;letter-spacing:.7px}.delete-crew-button{width:100%;margin-top:12px;border:1px solid #85443f;background:#281717;color:#ff9d92;padding:12px;font-size:12px;font-weight:900}
     </style>
   </head>
   <body>
@@ -122,9 +123,13 @@
         <button class="back-button" data-target="teams">&lsaquo; Team &amp; crews</button>
         <div class="page-heading"><p class="eyebrow">ACTIVE CREW</p><h2 id="crew-detail-name">Crew</h2></div>
         <div id="crew-detail-members" class="member-list"></div>
+        <form class="management-form" id="crew-member-form">
+          <h3>Add a member to this crew</h3><input id="crew-member-name" maxlength="40" placeholder="Full name" required /><input id="crew-member-role" maxlength="28" placeholder="Role (e.g. Journeyman)" required /><button class="primary-action" type="submit">Add member</button>
+        </form>
         <form class="management-form assignment-form" id="crew-assignment-form">
           <h3>Assign to a job</h3><select id="crew-job-select"></select><button class="primary-action" type="submit">Save assignment</button>
         </form>
+        <button class="delete-crew-button" id="delete-crew-button">Delete this crew</button>
       </section>
 
       <button class="fab" id="add-button" aria-label="Add item">+</button>
