@@ -7,8 +7,14 @@ create table if not exists public.companies (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   owner_id uuid not null references auth.users(id) on delete restrict,
+  join_code text,
   created_at timestamptz not null default now()
 );
+
+alter table public.companies add column if not exists join_code text;
+alter table public.companies alter column join_code set default upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 8));
+update public.companies set join_code = upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 8)) where join_code is null;
+create unique index if not exists companies_join_code_key on public.companies(join_code);
 
 create table if not exists public.company_members (
   company_id uuid not null references public.companies(id) on delete cascade,
@@ -124,6 +130,34 @@ as $$
     where id = target_company_id and owner_id = auth.uid()
   );
 $$;
+
+-- Lets a signed-in employee join a company with its private eight-character code.
+create or replace function public.join_company_with_code(company_code text)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_company_id uuid;
+begin
+  select id into target_company_id
+  from public.companies
+  where join_code = upper(trim(company_code));
+
+  if target_company_id is null then
+    raise exception 'That company code was not found.';
+  end if;
+
+  insert into public.company_members (company_id, user_id, role)
+  values (target_company_id, auth.uid(), 'member')
+  on conflict (company_id, user_id) do nothing;
+
+  return target_company_id;
+end;
+$$;
+
+grant execute on function public.join_company_with_code(text) to authenticated;
 
 alter table public.companies enable row level security;
 alter table public.company_members enable row level security;

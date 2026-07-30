@@ -3,6 +3,10 @@ const navItems = document.querySelectorAll('.nav-item');
 const supabaseUrl = 'https://plzonnnsgbasizvwmfit.supabase.co';
 const supabaseAnonKey = 'sb_publishable_YIuhjQvB3Xypa-AWk9shxw_MvPm3snC';
 const supabaseClient = window.supabase?.createClient(supabaseUrl, supabaseAnonKey);
+let currentUser = null;
+let activeCompanyId = localStorage.getItem('current-active-company-id') || null;
+let companyInfo = null;
+let companyChannel = null;
 const showView = target => {
   const parentTabs = { 'job-detail': 'jobs', 'crew-detail': 'teams', 'stock-detail': 'inventory', settings: 'more' };
   const activeTab = parentTabs[target] || target;
@@ -130,9 +134,9 @@ function applySignedInUser(user) {
 async function initializeAuth() {
   if (!supabaseClient) { showAuthMessage('Sign-in service could not load. Check your connection.', true); authModal.hidden = false; return; }
   const { data: { session } } = await supabaseClient.auth.getSession();
-  if (session) applySignedInUser(session.user);
+  if (session) { applySignedInUser(session.user); await initializeCompanyWorkspace(session.user); }
   else authModal.hidden = false;
-  supabaseClient.auth.onAuthStateChange((_event, session) => { if (session) applySignedInUser(session.user); });
+  supabaseClient.auth.onAuthStateChange((_event, session) => { if (session) { applySignedInUser(session.user); initializeCompanyWorkspace(session.user); } });
 }
 document.querySelector('#auth-toggle').addEventListener('click', () => { isSignUp = !isSignUp; renderAuthMode(); });
 document.querySelector('#auth-form').addEventListener('submit', async event => {
@@ -149,7 +153,7 @@ document.querySelector('#auth-form').addEventListener('submit', async event => {
     : await supabaseClient.auth.signInWithPassword({ email, password });
   if (result.error) { showAuthMessage(result.error.message, true); return; }
   if (isSignUp && !result.data.session) showAuthMessage('Check your email to confirm your account, then sign in.');
-  else if (result.data.user) applySignedInUser(result.data.user);
+  else if (result.data.user) { applySignedInUser(result.data.user); await initializeCompanyWorkspace(result.data.user); }
 });
 const escapeHtml = value => String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
 
@@ -157,27 +161,109 @@ function saveData() {
   localStorage.setItem(crewKey, JSON.stringify(crews));
   localStorage.setItem(jobKey, JSON.stringify(jobs));
   render();
+  syncSharedState();
 }
 function saveTools() {
   localStorage.setItem(toolKey, JSON.stringify(tools));
   renderTools();
+  syncSharedState();
 }
 function saveStockLocations() {
   localStorage.setItem(stockLocationKey, JSON.stringify(stockLocations));
   renderStockLocations();
+  syncSharedState();
 }
 function saveMaterialCatalog() {
   localStorage.setItem(materialCatalogKey, JSON.stringify(materialCatalog));
   renderMaterialCatalog();
+  syncSharedState();
 }
 function saveTodaySchedule() {
   localStorage.setItem(scheduleDateKey, localCalendarDate());
   localStorage.setItem(scheduleKey, JSON.stringify(todaySchedule));
   renderTodaySchedule();
+  syncSharedState();
 }
 function saveServiceNotes() {
   localStorage.setItem(serviceNotesKey, JSON.stringify(serviceNotes));
   renderServiceNotes();
+  syncSharedState();
+}
+function sharedPayload() {
+  return { jobs, crews, tools, stockLocations, materialCatalog, todaySchedule, scheduleDate: localStorage.getItem(scheduleDateKey), serviceNotes };
+}
+function cacheSharedPayload(payload) {
+  jobs = Array.isArray(payload.jobs) ? payload.jobs : [];
+  crews = Array.isArray(payload.crews) ? payload.crews : [];
+  tools = Array.isArray(payload.tools) ? payload.tools : [];
+  stockLocations = Array.isArray(payload.stockLocations) ? payload.stockLocations : [];
+  materialCatalog = Array.isArray(payload.materialCatalog) ? payload.materialCatalog : [];
+  todaySchedule = Array.isArray(payload.todaySchedule) ? payload.todaySchedule : [];
+  serviceNotes = Array.isArray(payload.serviceNotes) ? payload.serviceNotes : [];
+  localStorage.setItem(jobKey, JSON.stringify(jobs));
+  localStorage.setItem(crewKey, JSON.stringify(crews));
+  localStorage.setItem(toolKey, JSON.stringify(tools));
+  localStorage.setItem(stockLocationKey, JSON.stringify(stockLocations));
+  localStorage.setItem(materialCatalogKey, JSON.stringify(materialCatalog));
+  localStorage.setItem(scheduleKey, JSON.stringify(todaySchedule));
+  localStorage.setItem(scheduleDateKey, payload.scheduleDate || localCalendarDate());
+  localStorage.setItem(serviceNotesKey, JSON.stringify(serviceNotes));
+  render();
+}
+async function syncSharedState() {
+  if (!supabaseClient || !activeCompanyId || !currentUser) return;
+  const { error } = await supabaseClient.from('company_app_state').upsert({
+    company_id: activeCompanyId,
+    data: sharedPayload(),
+    updated_by: currentUser.id,
+    updated_at: new Date().toISOString()
+  }, { onConflict: 'company_id' });
+  if (error) showToast(`Sync issue: ${error.message}`);
+}
+async function loadSharedState() {
+  const { data, error } = await supabaseClient.from('company_app_state').select('data').eq('company_id', activeCompanyId).maybeSingle();
+  if (error) { showToast(`Could not load company data: ${error.message}`); return; }
+  if (data?.data && Object.keys(data.data).length) cacheSharedPayload(data.data);
+  else await syncSharedState();
+}
+function updateCompanyUI() {
+  document.querySelector('#company-join-code').textContent = companyInfo?.join_code || 'Not connected';
+  document.querySelector('#company-sync-status').textContent = companyInfo?.name ? `${companyInfo.name} · shared live` : 'Not connected';
+}
+function subscribeToCompanyState() {
+  if (!supabaseClient || !activeCompanyId) return;
+  if (companyChannel) supabaseClient.removeChannel(companyChannel);
+  companyChannel = supabaseClient.channel(`company-state-${activeCompanyId}`).on('postgres_changes', {
+    event: 'UPDATE', schema: 'public', table: 'company_app_state', filter: `company_id=eq.${activeCompanyId}`
+  }, payload => {
+    if (payload.new.updated_by === currentUser?.id) return;
+    cacheSharedPayload(payload.new.data || {});
+    showToast('Company data updated');
+  }).subscribe();
+}
+async function connectCompany(companyId) {
+  const { data, error } = await supabaseClient.from('companies').select('id,name,join_code').eq('id', companyId).single();
+  if (error) { showWorkspaceMessage(error.message, true); return; }
+  activeCompanyId = companyId;
+  companyInfo = data;
+  localStorage.setItem('current-active-company-id', companyId);
+  document.querySelector('#workspace-modal').hidden = true;
+  updateCompanyUI();
+  await loadSharedState();
+  subscribeToCompanyState();
+}
+function showWorkspaceMessage(message, isError = false) {
+  const messageElement = document.querySelector('#workspace-message');
+  messageElement.textContent = message;
+  messageElement.classList.toggle('error', isError);
+}
+async function initializeCompanyWorkspace(user) {
+  currentUser = user;
+  if (!supabaseClient) return;
+  const { data, error } = await supabaseClient.from('company_members').select('company_id').eq('user_id', user.id).limit(1);
+  if (error) { showWorkspaceMessage(`Company setup error: ${error.message}`, true); document.querySelector('#workspace-modal').hidden = false; return; }
+  if (data?.length) await connectCompany(data[0].company_id);
+  else document.querySelector('#workspace-modal').hidden = false;
 }
 function renderCrews() {
   const list = document.querySelector('#crew-list');
