@@ -265,6 +265,36 @@ async function initializeCompanyWorkspace(user) {
   if (data?.length) await connectCompany(data[0].company_id);
   else document.querySelector('#workspace-modal').hidden = false;
 }
+document.querySelector('#create-company-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const name = document.querySelector('#company-name').value.trim();
+  const submitButton = event.currentTarget.querySelector('button');
+  if (!name || !supabaseClient || !currentUser) return;
+  submitButton.disabled = true;
+  showWorkspaceMessage('Creating your company workspace…');
+  const { data, error } = await supabaseClient.rpc('create_company_workspace', { company_name: name });
+  submitButton.disabled = false;
+  if (error) { showWorkspaceMessage(`Could not create workspace: ${error.message}`, true); return; }
+  const workspace = Array.isArray(data) ? data[0] : data;
+  if (!workspace?.company_id) { showWorkspaceMessage('Could not create workspace. Please try again.', true); return; }
+  await connectCompany(workspace.company_id);
+  showToast(`Workspace created. Your company code is ${workspace.join_code}.`);
+});
+document.querySelector('#join-company-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const code = document.querySelector('#company-code').value.trim().toUpperCase();
+  const submitButton = event.currentTarget.querySelector('button');
+  if (!code || !supabaseClient || !currentUser) return;
+  submitButton.disabled = true;
+  showWorkspaceMessage('Joining company workspace…');
+  const { data, error } = await supabaseClient.rpc('join_company_with_code', { company_code: code });
+  submitButton.disabled = false;
+  if (error) { showWorkspaceMessage(`Could not join workspace: ${error.message}`, true); return; }
+  const workspace = Array.isArray(data) ? data[0] : data;
+  if (!workspace?.company_id) { showWorkspaceMessage('That company code was not found.', true); return; }
+  await connectCompany(workspace.company_id);
+  showToast('Joined company workspace.');
+});
 function renderCrews() {
   const list = document.querySelector('#crew-list');
   const select = document.querySelector('#member-crew');
