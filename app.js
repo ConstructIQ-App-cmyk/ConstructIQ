@@ -191,16 +191,39 @@ function renderTools() {
 function renderStockLocations() {
   const list = document.querySelector('#stock-location-list');
   if (!list) return;
-  list.innerHTML = stockLocations.length ? stockLocations.map(location => `<button class="stock-location-record" data-stock-location-id="${location.id}"><span>${location.type === 'Truck Stock' ? 'T' : location.type === 'Shop Stock' ? 'S' : 'J'}</span><div><b>${escapeHtml(location.name)}</b><small>${escapeHtml(location.type)} · ${(location.items || []).length} item${(location.items || []).length === 1 ? '' : 's'}</small></div><em>›</em></button>`).join('') : '<p class="empty-state">No stock locations yet. Add your shop, truck, or job-site stock.</p>';
+  list.innerHTML = stockLocations.length ? stockLocations.map(location => { const attention = (location.items || []).filter(item => Number(item.quantity) <= Number(item.minimum || 0)).length; return `<button class="stock-location-record" data-stock-location-id="${location.id}"><span>S</span><div><b>${escapeHtml(location.name)}</b><small>${(location.items || []).length} item${(location.items || []).length === 1 ? '' : 's'}${attention ? ` · ${attention} needs attention` : ''}</small></div><em>›</em></button>`; }).join('') : '<p class="empty-state">No stock locations yet. Add a location to begin tracking stock.</p>';
+  renderStockSummary();
+  renderIssueOptions();
+}
+function stockAttentionItems() {
+  return stockLocations.flatMap(location => (location.items || []).filter(item => Number(item.quantity) <= Number(item.minimum || 0)).map(item => ({ location, item })));
+}
+function renderStockSummary() {
+  const allItems = stockLocations.flatMap(location => location.items || []);
+  document.querySelector('#inventory-sku-count').textContent = String(allItems.length).padStart(2, '0');
+  document.querySelector('#inventory-attention-count').textContent = String(stockAttentionItems().length).padStart(2, '0');
+}
+function renderIssueOptions() {
+  const locationSelect = document.querySelector('#issue-location');
+  const itemSelect = document.querySelector('#issue-item');
+  if (!locationSelect || !itemSelect) return;
+  locationSelect.innerHTML = stockLocations.length ? stockLocations.map(location => `<option value="${location.id}">${escapeHtml(location.name)}</option>`).join('') : '<option value="">Add a stock location first</option>';
+  locationSelect.disabled = !stockLocations.length;
+  renderIssueItemOptions(locationSelect.value);
+}
+function renderIssueItemOptions(locationId) {
+  const itemSelect = document.querySelector('#issue-item');
+  const location = stockLocations.find(item => item.id === locationId);
+  const items = location?.items || [];
+  itemSelect.innerHTML = items.length ? items.map(item => `<option value="${item.id}">${escapeHtml(item.name)} (${item.quantity} ${escapeHtml(item.unit)})</option>`).join('') : '<option value="">Add stock to this location first</option>';
+  itemSelect.disabled = !items.length;
 }
 function openStockLocation(location) {
   if (!location) return;
   selectedStockLocationId = location.id;
   location.items ||= [];
   document.querySelector('#stock-detail-name').textContent = location.name;
-  document.querySelector('#stock-detail-type').textContent = location.type;
   document.querySelector('#stock-edit-name').value = location.name;
-  document.querySelector('#stock-edit-type').value = location.type;
   document.querySelector('#stock-edit-form').hidden = true;
   document.querySelector('#stock-item-form').reset();
   renderStockItems(location);
@@ -208,7 +231,7 @@ function openStockLocation(location) {
 }
 function renderStockItems(location) {
   const list = document.querySelector('#stock-item-list');
-  list.innerHTML = location.items.length ? location.items.map(item => `<article class="stock-item-record"><div><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.quantity)} ${escapeHtml(item.unit)}</small></div><button data-remove-stock-item="${item.id}" aria-label="Remove ${escapeHtml(item.name)}">&times;</button></article>`).join('') : '<p class="empty-state">No material added to this location yet.</p>';
+  list.innerHTML = location.items.length ? location.items.map(item => { const low = Number(item.quantity) <= Number(item.minimum || 0); return `<article class="stock-item-record ${low ? 'low-stock-item' : ''}"><div><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.quantity)} ${escapeHtml(item.unit)} · Minimum: ${escapeHtml(item.minimum ?? 0)}${low ? ' · Needs attention' : ''}</small></div><button data-remove-stock-item="${item.id}" aria-label="Remove ${escapeHtml(item.name)}">&times;</button></article>`; }).join('') : '<p class="empty-state">No material added to this location yet.</p>';
 }
 function createCommercialChecklist() {
   return commercialInspectionDefaults.map((name, index) => ({ id: `inspection-${Date.now()}-${index}`, name, completed: false }));
@@ -314,10 +337,9 @@ document.querySelector('#tool-form').addEventListener('submit', event => {
 });
 document.querySelector('#stock-location-form').addEventListener('submit', event => {
   event.preventDefault();
-  const type = document.querySelector('#stock-location-type').value;
   const name = document.querySelector('#stock-location-name').value.trim();
   if (!name) return;
-  stockLocations.push({ id: `stock-${Date.now()}`, type, name, items: [] });
+  stockLocations.push({ id: `stock-${Date.now()}`, name, items: [] });
   event.currentTarget.reset();
   event.currentTarget.hidden = true;
   saveStockLocations();
@@ -333,10 +355,8 @@ document.querySelector('#stock-edit-form').addEventListener('submit', event => {
   event.preventDefault();
   const location = stockLocations.find(item => item.id === selectedStockLocationId);
   const name = document.querySelector('#stock-edit-name').value.trim();
-  const type = document.querySelector('#stock-edit-type').value;
   if (!location || !name) return;
   location.name = name;
-  location.type = type;
   event.currentTarget.hidden = true;
   saveStockLocations();
   openStockLocation(location);
@@ -347,9 +367,10 @@ document.querySelector('#stock-item-form').addEventListener('submit', event => {
   const name = document.querySelector('#stock-item-name').value.trim();
   const quantity = document.querySelector('#stock-item-quantity').value;
   const unit = document.querySelector('#stock-item-unit').value.trim();
-  if (!location || !name || quantity === '' || !unit) return;
+  const minimum = document.querySelector('#stock-item-minimum').value;
+  if (!location || !name || quantity === '' || !unit || minimum === '') return;
   location.items ||= [];
-  location.items.push({ id: `item-${Date.now()}`, name, quantity, unit });
+  location.items.push({ id: `item-${Date.now()}`, name, quantity, unit, minimum });
   event.currentTarget.reset();
   saveStockLocations();
   renderStockItems(location);
@@ -479,17 +500,25 @@ document.querySelector('#quick-add-sheet').addEventListener('click', event => {
   if (action === 'job') { showView('jobs'); openJobForm(); }
   if (action === 'crew') { showView('teams'); document.querySelector('#team-form').hidden = false; document.querySelector('#member-form').hidden = true; }
   if (action === 'member') { showView('teams'); document.querySelector('#member-form').hidden = false; document.querySelector('#team-form').hidden = true; }
-  if (action === 'material') { showView('inventory'); document.querySelector('#issue-form').hidden = false; }
+  if (action === 'material') { showView('inventory'); renderIssueOptions(); document.querySelector('#issue-form').hidden = false; }
   if (action === 'photo') document.querySelector('#photo-input').click();
 });
+document.querySelector('#issue-location').addEventListener('change', event => renderIssueItemOptions(event.target.value));
 document.querySelector('#issue-form').addEventListener('submit', event => {
   event.preventDefault();
-  const material = document.querySelector('#issue-material').value.trim();
-  const quantity = document.querySelector('#issue-quantity').value;
-  if (!material || !quantity) return;
+  const location = stockLocations.find(item => item.id === document.querySelector('#issue-location').value);
+  const item = location?.items?.find(stock => stock.id === document.querySelector('#issue-item').value);
+  const used = Number(document.querySelector('#issue-quantity').value);
+  if (!location || !item || !used || used <= 0) return;
+  const onHand = Number(item.quantity);
+  if (used > onHand) { showToast(`Only ${item.quantity} ${item.unit} available`); return; }
+  item.quantity = String(onHand - used);
   event.currentTarget.reset();
   event.currentTarget.hidden = true;
-  showToast(`${quantity} ${material} issued`);
+  saveStockLocations();
+  const low = Number(item.quantity) <= Number(item.minimum || 0);
+  showToast(low ? `${item.name} in ${location.name} needs attention` : `${used} ${item.unit} of ${item.name} used`);
+  if (low && 'Notification' in window && Notification.permission === 'granted') new Notification('Stock needs attention', { body: `${item.name} in ${location.name} is at or below its threshold.` });
 });
 document.querySelector('#photo-input').addEventListener('change', event => {
   const photo = event.target.files[0];
