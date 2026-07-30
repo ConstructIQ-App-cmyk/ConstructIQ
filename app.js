@@ -4,7 +4,7 @@ const supabaseUrl = 'https://plzonnnsgbasizvwmfit.supabase.co';
 const supabaseAnonKey = 'sb_publishable_YIuhjQvB3Xypa-AWk9shxw_MvPm3snC';
 const supabaseClient = window.supabase?.createClient(supabaseUrl, supabaseAnonKey);
 const showView = target => {
-  const parentTabs = { 'job-detail': 'jobs', 'crew-detail': 'teams', settings: 'more' };
+  const parentTabs = { 'job-detail': 'jobs', 'crew-detail': 'teams', 'stock-detail': 'inventory', settings: 'more' };
   const activeTab = parentTabs[target] || target;
   views.forEach(view => view.classList.toggle('active', view.id === `${target}-view`));
   navItems.forEach(item => item.classList.toggle('active', item.dataset.target === activeTab));
@@ -37,6 +37,7 @@ let crews = JSON.parse(localStorage.getItem(crewKey) || '[]');
 let jobs = JSON.parse(localStorage.getItem(jobKey) || '[]');
 let tools = JSON.parse(localStorage.getItem(toolKey) || '[]');
 let stockLocations = JSON.parse(localStorage.getItem(stockLocationKey) || '[]');
+let selectedStockLocationId = null;
 let selectedCrewIndex = null;
 let editingJobId = null;
 let selectedJobId = null;
@@ -190,7 +191,24 @@ function renderTools() {
 function renderStockLocations() {
   const list = document.querySelector('#stock-location-list');
   if (!list) return;
-  list.innerHTML = stockLocations.length ? stockLocations.map(location => `<article class="stock-location-record"><span>${location.type === 'Truck Stock' ? 'T' : location.type === 'Shop Stock' ? 'S' : 'J'}</span><div><b>${escapeHtml(location.name)}</b><small>${escapeHtml(location.type)}</small></div></article>`).join('') : '<p class="empty-state">No stock locations yet. Add your shop, truck, or job-site stock.</p>';
+  list.innerHTML = stockLocations.length ? stockLocations.map(location => `<button class="stock-location-record" data-stock-location-id="${location.id}"><span>${location.type === 'Truck Stock' ? 'T' : location.type === 'Shop Stock' ? 'S' : 'J'}</span><div><b>${escapeHtml(location.name)}</b><small>${escapeHtml(location.type)} · ${(location.items || []).length} item${(location.items || []).length === 1 ? '' : 's'}</small></div><em>›</em></button>`).join('') : '<p class="empty-state">No stock locations yet. Add your shop, truck, or job-site stock.</p>';
+}
+function openStockLocation(location) {
+  if (!location) return;
+  selectedStockLocationId = location.id;
+  location.items ||= [];
+  document.querySelector('#stock-detail-name').textContent = location.name;
+  document.querySelector('#stock-detail-type').textContent = location.type;
+  document.querySelector('#stock-edit-name').value = location.name;
+  document.querySelector('#stock-edit-type').value = location.type;
+  document.querySelector('#stock-edit-form').hidden = true;
+  document.querySelector('#stock-item-form').reset();
+  renderStockItems(location);
+  showView('stock-detail');
+}
+function renderStockItems(location) {
+  const list = document.querySelector('#stock-item-list');
+  list.innerHTML = location.items.length ? location.items.map(item => `<article class="stock-item-record"><div><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.quantity)} ${escapeHtml(item.unit)}</small></div><button data-remove-stock-item="${item.id}" aria-label="Remove ${escapeHtml(item.name)}">&times;</button></article>`).join('') : '<p class="empty-state">No material added to this location yet.</p>';
 }
 function createCommercialChecklist() {
   return commercialInspectionDefaults.map((name, index) => ({ id: `inspection-${Date.now()}-${index}`, name, completed: false }));
@@ -299,10 +317,58 @@ document.querySelector('#stock-location-form').addEventListener('submit', event 
   const type = document.querySelector('#stock-location-type').value;
   const name = document.querySelector('#stock-location-name').value.trim();
   if (!name) return;
-  stockLocations.push({ id: `stock-${Date.now()}`, type, name });
+  stockLocations.push({ id: `stock-${Date.now()}`, type, name, items: [] });
   event.currentTarget.reset();
   event.currentTarget.hidden = true;
   saveStockLocations();
+});
+document.querySelector('#stock-location-list').addEventListener('click', event => {
+  const card = event.target.closest('[data-stock-location-id]');
+  if (card) openStockLocation(stockLocations.find(location => location.id === card.dataset.stockLocationId));
+});
+document.querySelector('#show-stock-edit-form').addEventListener('click', () => {
+  document.querySelector('#stock-edit-form').hidden = !document.querySelector('#stock-edit-form').hidden;
+});
+document.querySelector('#stock-edit-form').addEventListener('submit', event => {
+  event.preventDefault();
+  const location = stockLocations.find(item => item.id === selectedStockLocationId);
+  const name = document.querySelector('#stock-edit-name').value.trim();
+  const type = document.querySelector('#stock-edit-type').value;
+  if (!location || !name) return;
+  location.name = name;
+  location.type = type;
+  event.currentTarget.hidden = true;
+  saveStockLocations();
+  openStockLocation(location);
+});
+document.querySelector('#stock-item-form').addEventListener('submit', event => {
+  event.preventDefault();
+  const location = stockLocations.find(item => item.id === selectedStockLocationId);
+  const name = document.querySelector('#stock-item-name').value.trim();
+  const quantity = document.querySelector('#stock-item-quantity').value;
+  const unit = document.querySelector('#stock-item-unit').value.trim();
+  if (!location || !name || quantity === '' || !unit) return;
+  location.items ||= [];
+  location.items.push({ id: `item-${Date.now()}`, name, quantity, unit });
+  event.currentTarget.reset();
+  saveStockLocations();
+  renderStockItems(location);
+});
+document.querySelector('#stock-item-list').addEventListener('click', event => {
+  const button = event.target.closest('[data-remove-stock-item]');
+  const location = stockLocations.find(item => item.id === selectedStockLocationId);
+  if (!button || !location || !confirm('Delete this stock item?')) return;
+  location.items = location.items.filter(item => item.id !== button.dataset.removeStockItem);
+  saveStockLocations();
+  renderStockItems(location);
+});
+document.querySelector('#delete-stock-location-button').addEventListener('click', () => {
+  const location = stockLocations.find(item => item.id === selectedStockLocationId);
+  if (!location || !confirm(`Delete ${location.name} and all stock inside it?`)) return;
+  stockLocations = stockLocations.filter(item => item.id !== selectedStockLocationId);
+  selectedStockLocationId = null;
+  saveStockLocations();
+  showView('inventory');
 });
 document.querySelector('#tool-list').addEventListener('click', event => {
   const button = event.target.closest('[data-tool-action]');
