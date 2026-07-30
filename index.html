@@ -75,6 +75,7 @@
       .settings-list button,.settings-list label,.settings-info{border-radius:3px 11px 3px 11px;background:#10212b;border-color:#385563}.settings-mark{border-radius:3px;background:#1a3945;color:#91ffe9}.settings-info{box-shadow:inset 3px 0 #2f5964}
       .bottom-nav{height:84px;padding:12px 5px 8px;background:#09131aeF;border-top-color:#36515d;box-shadow:0 -11px 25px #0008}.nav-item{min-width:48px;font-size:8px;letter-spacing:.2px}.nav-item span{font-size:18px}.nav-item.active{color:#9effe8}.nav-item.active:after{content:"";width:13px;height:2px;background:#59d5be;margin-top:-2px}.fab{right:19px;bottom:98px;width:58px;height:58px;border-radius:16px 4px 16px 4px;border-color:#9affea;background:linear-gradient(145deg,#4ed4bb,#238e80);color:#071417;box-shadow:6px 6px 0 #0a3334!important}.toast{border-radius:4px 10px 4px 10px;background:#91f3de;color:#09201f}
       .pull-refresh{position:absolute;z-index:5;top:0;left:50%;display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid #426570;border-radius:0 0 9px 9px;background:#112a35;color:#d9fff7;box-shadow:0 7px 18px #0007;transform:translate(-50%,-64px);opacity:0;pointer-events:none;transition:transform .18s ease,opacity .18s ease}.pull-refresh.show{opacity:1}.pull-refresh.ready{border-color:#73e2cc;background:#164239}.pull-refresh-icon{width:19px;height:19px;border:2px solid #86d8ca;border-top-color:transparent;border-radius:50%;transition:transform .15s ease}.pull-refresh.ready .pull-refresh-icon{transform:rotate(180deg);border-color:#a8ffea;border-top-color:transparent}.pull-refresh.refreshing .pull-refresh-icon{animation:refresh-spin .7s linear infinite}@keyframes refresh-spin{to{transform:rotate(360deg)}}.pull-refresh b{font-size:9px;letter-spacing:.7px;white-space:nowrap}
+      .report-overview{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:0 0 18px}.report-overview article{padding:12px 9px 10px;background:#102630;border:1px solid #365967;border-radius:4px 12px 4px 12px}.report-overview span,.report-overview small{display:block}.report-overview span{color:#82a8af;font-size:7px;font-weight:900;letter-spacing:1px}.report-overview strong{display:block;color:#e5fffa;font-size:25px;line-height:1;margin:7px 0 4px}.report-overview small{color:#68d7c1;font-size:8px;font-weight:800}.reports-list{display:grid;gap:9px}.report-card{width:100%;display:grid;grid-template-columns:37px 1fr auto;align-items:center;gap:10px;text-align:left;padding:13px 11px;background:#0e2029;border:1px solid #365663;border-radius:3px 13px 3px 13px;color:#fff}.report-card:nth-child(3n+2){border-left:3px solid #f3ac3c}.report-card:nth-child(3n){border-left:3px solid #59d5be}.report-mark{width:35px;height:35px;display:grid;place-items:center;border-radius:3px 10px 3px 10px;background:#193a45;color:#9effea;font-size:10px;font-weight:900}.report-card:nth-child(3n+2) .report-mark{background:#3c2d18;color:#ffd478}.report-card b,.report-card small{display:block}.report-card b{font-size:13px;letter-spacing:-.25px}.report-card small{margin-top:4px;color:#a8bec4;font-size:10px;line-height:1.3}.report-card em{color:#88ead6;font-style:normal;font-size:21px}
       @media(min-width:600px){.app-shell{border-radius:22px 5px 22px 5px}}
     </style>
   </head>
@@ -178,7 +179,15 @@
 
       <section id="more-view" class="view">
         <div class="page-heading"><p class="eyebrow">WORKSPACE</p><h2>More tools</h2></div>
-        <div class="tool-list"><button>Reports <span>›</span></button><button data-target="settings">Settings <span>›</span></button></div>
+        <div class="tool-list"><button data-target="reports">Reports <span>›</span></button><button data-target="settings">Settings <span>›</span></button></div>
+      </section>
+
+      <section id="reports-view" class="view">
+        <button class="back-button" data-target="more">&lsaquo; More tools</button>
+        <div class="page-heading"><p class="eyebrow">OPERATIONS INTELLIGENCE</p><h2>Reports</h2></div>
+        <div class="report-overview" id="report-overview"></div>
+        <p class="list-label">LIVE WORKSPACE REPORTS</p>
+        <div class="reports-list" id="reports-list"></div>
       </section>
 
       <section id="tools-view" class="view">
@@ -258,7 +267,7 @@
       <form id="profile-form" class="profile-card"><p class="eyebrow">WELCOME TO CONSTRUCTIQ</p><h2>Who is using this device?</h2><p>Your name appears only on this device's app.</p><input id="profile-input" maxlength="50" placeholder="First and last name" required autofocus /><button type="submit">Save my name</button></form>
     </div>
     <div class="toast" id="toast">Material issue started</div>
-    <script src="app.js?v=43"></script>
+    <script src="app.js?v=44"></script>
     <script>
       if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js');
     </script>
