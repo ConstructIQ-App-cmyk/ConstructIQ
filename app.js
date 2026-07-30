@@ -19,6 +19,8 @@ const jobKey = 'current-jobs-v2';
 const toolKey = 'current-tools-v1';
 const stockLocationKey = 'current-stock-locations-v1';
 const materialCatalogKey = 'current-material-catalog-v1';
+const scheduleKey = 'current-today-schedule-v1';
+const serviceNotesKey = 'current-service-notes-v1';
 const profileKey = 'current-profile-name';
 const profileFullNameKey = 'current-profile-full-name';
 const hadExistingInstall = localStorage.getItem(dataVersion) === 'ready';
@@ -39,6 +41,8 @@ let jobs = JSON.parse(localStorage.getItem(jobKey) || '[]');
 let tools = JSON.parse(localStorage.getItem(toolKey) || '[]');
 let stockLocations = JSON.parse(localStorage.getItem(stockLocationKey) || '[]');
 let materialCatalog = JSON.parse(localStorage.getItem(materialCatalogKey) || '[]');
+let todaySchedule = JSON.parse(localStorage.getItem(scheduleKey) || '[]');
+let serviceNotes = JSON.parse(localStorage.getItem(serviceNotesKey) || '[]');
 let selectedStockLocationId = null;
 let selectedCatalogMaterialId = null;
 let selectedCrewIndex = null;
@@ -150,6 +154,14 @@ function saveMaterialCatalog() {
   localStorage.setItem(materialCatalogKey, JSON.stringify(materialCatalog));
   renderMaterialCatalog();
 }
+function saveTodaySchedule() {
+  localStorage.setItem(scheduleKey, JSON.stringify(todaySchedule));
+  renderTodaySchedule();
+}
+function saveServiceNotes() {
+  localStorage.setItem(serviceNotesKey, JSON.stringify(serviceNotes));
+  renderServiceNotes();
+}
 function renderCrews() {
   const list = document.querySelector('#crew-list');
   const select = document.querySelector('#member-crew');
@@ -191,6 +203,8 @@ function render() {
   renderTools();
   renderStockLocations();
   renderMaterialCatalog();
+  renderTodaySchedule();
+  renderServiceNotes();
   document.querySelector('#home-member-count').textContent = String(crews.reduce((sum, crew) => sum + crew.members.length, 0)).padStart(2, '0');
 }
 function renderTools() {
@@ -242,6 +256,24 @@ function openStockLocation(location) {
 function renderStockItems(location) {
   const list = document.querySelector('#stock-item-list');
   list.innerHTML = location.items.length ? location.items.map(item => { const low = Number(item.quantity) <= Number(item.minimum || 0); return `<article class="stock-item-record ${low ? 'low-stock-item' : ''}"><div><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.quantity)} ${escapeHtml(item.unit)} · Minimum: ${escapeHtml(item.minimum ?? 0)}${low ? ' · Needs attention' : ''}</small></div><button data-remove-stock-item="${item.id}" aria-label="Remove ${escapeHtml(item.name)}">&times;</button></article>`; }).join('') : '<p class="empty-state">No material added to this location yet.</p>';
+}
+function renderTodaySchedule() {
+  const list = document.querySelector('#home-next-job');
+  const jobSelect = document.querySelector('#schedule-job');
+  const crewSelect = document.querySelector('#schedule-crew');
+  if (!list || !jobSelect) return;
+  jobSelect.innerHTML = `<option value="">Select job (optional)</option>${jobs.map(job => `<option value="${job.id}">${escapeHtml(job.name)}</option>`).join('')}`;
+  crewSelect.innerHTML = crews.length ? crews.map((crew, index) => `<option value="${index}">${escapeHtml(crew.name)}</option>`).join('') : '<option value="">Create a crew first</option>';
+  crewSelect.disabled = !crews.length;
+  list.innerHTML = todaySchedule.length ? todaySchedule.map(assignment => `<article class="schedule-record"><span>${initials(assignment.person)}</span><div><b>${escapeHtml(assignment.person)}</b><small>${escapeHtml(assignment.location)}${assignment.jobName ? ` · ${escapeHtml(assignment.jobName)}` : ''}</small></div><button data-remove-schedule="${assignment.id}" aria-label="Remove ${escapeHtml(assignment.person)}">&times;</button></article>`).join('') : '<p class="empty-state home-empty">No assignments added for today.</p>';
+}
+function renderServiceNotes() {
+  const list = document.querySelector('#service-note-list');
+  const jobSelect = document.querySelector('#service-note-job');
+  if (!list || !jobSelect) return;
+  const eligibleJobs = jobs.filter(job => ['Service', 'Generators', 'Generator Service'].includes(job.type));
+  jobSelect.innerHTML = eligibleJobs.length ? `<option value="">Select service or generator job</option>${eligibleJobs.map(job => `<option value="${job.id}">${escapeHtml(job.name)} · ${escapeHtml(job.type)}</option>`).join('')}` : '<option value="">Create a service or generator job first</option>';
+  list.innerHTML = serviceNotes.length ? serviceNotes.map(note => `<article class="service-note-record"><div><p>${escapeHtml(note.jobName)} · ${escapeHtml(note.jobType)}</p><b>${escapeHtml(note.note)}</b>${note.materials ? `<small>Material needed: ${escapeHtml(note.materials)}</small>` : ''}</div><button data-remove-service-note="${note.id}" aria-label="Delete note">&times;</button></article>`).join('') : '<p class="empty-state">No service or generator notes yet.</p>';
 }
 function renderMaterialCatalog(searchTerm = document.querySelector('#catalog-search')?.value || '') {
   const list = document.querySelector('#catalog-list');
@@ -339,10 +371,39 @@ function openJobForm(job = null) {
   document.querySelector('#job-due').value = job?.due || '';
 }
 document.querySelector('#show-job-form').addEventListener('click', () => openJobForm());
+document.querySelectorAll('[data-jobs-panel]').forEach(button => button.addEventListener('click', () => {
+  const showingNotes = button.dataset.jobsPanel === 'notes';
+  document.querySelector('#job-board-panel').hidden = showingNotes;
+  document.querySelector('#service-notes-panel').hidden = !showingNotes;
+  document.querySelectorAll('[data-jobs-panel]').forEach(item => item.classList.toggle('active', item === button));
+  if (showingNotes) renderServiceNotes();
+}));
+document.querySelector('#show-service-note-form').addEventListener('click', () => {
+  renderServiceNotes();
+  document.querySelector('#service-note-form').hidden = !document.querySelector('#service-note-form').hidden;
+});
+document.querySelector('#show-schedule-form').addEventListener('click', () => {
+  renderTodaySchedule();
+  document.querySelector('#schedule-form').hidden = !document.querySelector('#schedule-form').hidden;
+});
+function renderScheduleAssignmentType() {
+  const isCrew = document.querySelector('#schedule-assignment-type').value === 'crew';
+  document.querySelector('#schedule-crew').hidden = !isCrew;
+  document.querySelector('#schedule-crew').required = isCrew;
+  document.querySelector('#schedule-person').hidden = isCrew;
+  document.querySelector('#schedule-person').required = !isCrew;
+}
+document.querySelector('#schedule-assignment-type').addEventListener('change', renderScheduleAssignmentType);
+document.querySelector('#schedule-job').addEventListener('change', event => {
+  const job = jobs.find(item => item.id === event.target.value);
+  const location = document.querySelector('#schedule-location');
+  if (job?.location && !location.value) location.value = job.location;
+});
 document.querySelectorAll('[data-cancel-form]').forEach(button => button.addEventListener('click', () => {
   const form = document.querySelector(`#${button.dataset.cancelForm}`);
   form.reset();
   if (button.dataset.cancelForm === 'job-form') editingJobId = null;
+  if (button.dataset.cancelForm === 'schedule-form') renderScheduleAssignmentType();
   if (button.dataset.cancelMode !== 'reset') form.hidden = true;
 }));
 document.querySelector('#job-list').addEventListener('click', event => {
@@ -350,6 +411,43 @@ document.querySelector('#job-list').addEventListener('click', event => {
   if (button) { openJobForm(jobs.find(job => job.id === button.dataset.editJob)); return; }
   const card = event.target.closest('[data-open-job]');
   if (card) openJob(jobs.find(job => job.id === card.dataset.openJob));
+});
+document.querySelector('#service-note-form').addEventListener('submit', event => {
+  event.preventDefault();
+  const job = jobs.find(item => item.id === document.querySelector('#service-note-job').value);
+  const note = document.querySelector('#service-note-text').value.trim();
+  const materials = document.querySelector('#service-note-materials').value.trim();
+  if (!job || !note) return;
+  serviceNotes.push({ id: `service-note-${Date.now()}`, jobId: job.id, jobName: job.name, jobType: job.type, note, materials });
+  event.currentTarget.reset();
+  event.currentTarget.hidden = true;
+  saveServiceNotes();
+});
+document.querySelector('#service-note-list').addEventListener('click', event => {
+  const button = event.target.closest('[data-remove-service-note]');
+  if (!button || !confirm('Delete this service note?')) return;
+  serviceNotes = serviceNotes.filter(note => note.id !== button.dataset.removeServiceNote);
+  saveServiceNotes();
+});
+document.querySelector('#schedule-form').addEventListener('submit', event => {
+  event.preventDefault();
+  const isCrew = document.querySelector('#schedule-assignment-type').value === 'crew';
+  const crewIndex = Number(document.querySelector('#schedule-crew').value);
+  const person = isCrew ? crews[crewIndex]?.name : document.querySelector('#schedule-person').value.trim();
+  const location = document.querySelector('#schedule-location').value.trim();
+  const job = jobs.find(item => item.id === document.querySelector('#schedule-job').value);
+  if (!person) return;
+  todaySchedule.push({ id: `schedule-${Date.now()}`, person, location: location || 'Location not added', jobName: job?.name || '' });
+  event.currentTarget.reset();
+  event.currentTarget.hidden = true;
+  renderScheduleAssignmentType();
+  saveTodaySchedule();
+});
+document.querySelector('#home-next-job').addEventListener('click', event => {
+  const button = event.target.closest('[data-remove-schedule]');
+  if (!button || !confirm('Remove this assignment from today’s schedule?')) return;
+  todaySchedule = todaySchedule.filter(item => item.id !== button.dataset.removeSchedule);
+  saveTodaySchedule();
 });
 document.querySelector('#team-form').addEventListener('submit', event => {
   event.preventDefault(); const name = document.querySelector('#team-name').value.trim(); if (!name) return;

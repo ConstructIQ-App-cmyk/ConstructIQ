@@ -49,6 +49,8 @@
     </style>
     <style>
       .material-search{margin:0 0 9px}.catalog-list{display:grid;gap:8px}.catalog-record{display:flex;align-items:center;justify-content:space-between;background:#111f29;border:1px solid #30434e;padding:10px}.catalog-record b,.catalog-record small{display:block}.catalog-record b{font-size:13px;color:#fff}.catalog-record small{color:#a3b3bb;font-size:10px;margin-top:3px}.catalog-record button{border:1px solid #ffb338;background:#172731;color:#ffcc60;padding:7px;font-size:8px;font-weight:900;white-space:nowrap}
+      .schedule-record{display:flex;align-items:center;gap:10px;background:#111f29;border:1px solid #30434e;padding:10px;margin-top:8px}.schedule-record>span{width:32px;height:32px;display:grid;place-items:center;background:#263b45;color:#a7f0d4;font-size:9px;font-weight:900}.schedule-record>div{flex:1}.schedule-record b,.schedule-record small{display:block}.schedule-record b{color:#fff;font-size:13px}.schedule-record small{color:#a3b3bb;font-size:10px;margin-top:3px}.schedule-record button{width:25px;height:25px;border:1px solid #74423e;background:#2b1a1a;color:#ff9d92;font-size:17px;line-height:17px}
+      .job-subtabs{display:flex;gap:7px;margin:-6px 0 14px}.job-subtabs button{flex:1;border:1px solid #354953;background:#111f29;color:#aebdc3;font-size:10px;font-weight:900;padding:10px 6px}.job-subtabs button.active{background:#ff9e1b;border-color:#ffb338;color:#172029}.management-form textarea{display:block;width:100%;min-height:86px;resize:vertical;border:1px solid #d8e1dc;border-radius:8px;background:#0b151d;color:#fff;padding:11px;margin:0 0 9px;font-size:13px}.service-note-list{display:grid;gap:9px;margin-top:12px}.service-note-record{display:flex;gap:10px;background:#111f29;border:1px solid #30434e;padding:12px}.service-note-record>div{flex:1}.service-note-record p{font-size:9px;color:#ffcc60;font-weight:900;letter-spacing:.8px;margin:0 0 6px}.service-note-record b,.service-note-record small{display:block}.service-note-record b{font-size:12px;line-height:1.35;color:#fff;font-weight:600}.service-note-record small{font-size:10px;line-height:1.35;color:#a3b3bb;margin-top:9px}.service-note-record button{width:26px;height:26px;border:1px solid #74423e;background:#2b1a1a;color:#ff9d92;font-size:18px;line-height:18px;flex:none}
     </style>
   </head>
   <body>
@@ -73,7 +75,7 @@
           <article><span>TASKS OPEN</span><strong id="home-task-count">00</strong></article>
           <article><span>STOCK FLAGS</span><strong>00</strong></article>
         </section>
-        <section class="deployment-board"><div class="board-heading"><span>FIELD QUEUE</span><button data-target="jobs">VIEW ALL</button></div><h2>Next deployment</h2><div id="home-next-job"></div></section>
+        <section class="deployment-board"><div class="board-heading"><span>TODAY'S SCHEDULE</span><button id="show-schedule-form">ADD</button></div><h2>Who's where today</h2><form class="management-form" id="schedule-form" hidden><h3>Add today&rsquo;s assignment</h3><select id="schedule-assignment-type"><option value="crew">Existing crew</option><option value="person">Individual person</option></select><select id="schedule-crew" required></select><input id="schedule-person" maxlength="50" placeholder="Person&rsquo;s name" hidden /><select id="schedule-job"><option value="">Select job (optional)</option></select><input id="schedule-location" maxlength="60" placeholder="Where are they working? (optional)" /><div class="form-actions"><button class="primary-action" type="submit">Add to schedule</button><button class="cancel-action" data-cancel-form="schedule-form" type="button">Cancel</button></div></form><div id="home-next-job"></div></section>
         <section class="command-actions"><button data-target="inventory"><b>! &nbsp; MATERIAL CONTROL</b><small>Inventory and low-stock alerts</small><em>&rarr;</em></button><button data-target="teams"><b>+ &nbsp; CREW COMMAND</b><small>Teams, people, and assignments</small><em>&rarr;</em></button></section>
         <section class="hero-card">
           <div class="hero-copy">
@@ -99,11 +101,13 @@
 
       <section id="jobs-view" class="view">
         <div class="page-heading"><p class="eyebrow">FIELD OPERATIONS</p><h2>Job board</h2></div>
-        <button class="primary-action wide-action" id="show-job-form">+ Add job</button>
+        <div class="job-subtabs"><button class="active" data-jobs-panel="board">Job board</button><button data-jobs-panel="notes">Service &amp; generator notes</button></div>
+        <div id="job-board-panel"><button class="primary-action wide-action" id="show-job-form">+ Add job</button>
         <form class="management-form" id="job-form" hidden>
           <h3 id="job-form-title">New job</h3><input id="job-name" maxlength="50" placeholder="Job name" required /><select id="job-type" required><option value="" disabled selected>Select job type</option><option>Commercial Jobs</option><option>Service</option><option>Generators</option><option>Generator Service</option></select><input id="job-location" maxlength="60" placeholder="Job location (optional)" /><input id="job-due" type="date" /><div class="form-actions"><button class="primary-action" id="job-submit" type="submit">Create job</button><button class="cancel-action" data-cancel-form="job-form" type="button">Cancel</button></div>
         </form>
-        <div id="job-list"></div>
+        <div id="job-list"></div></div>
+        <div id="service-notes-panel" hidden><button class="primary-action wide-action" id="show-service-note-form">+ Add service note</button><form class="management-form" id="service-note-form" hidden><h3>Service or generator note</h3><select id="service-note-job" required></select><textarea id="service-note-text" maxlength="1000" placeholder="Work performed, findings, or customer notes" required></textarea><textarea id="service-note-materials" maxlength="500" placeholder="Material needed (optional)" ></textarea><div class="form-actions"><button class="primary-action" type="submit">Save note</button><button class="cancel-action" data-cancel-form="service-note-form" type="button">Cancel</button></div></form><div id="service-note-list" class="service-note-list"></div></div>
       </section>
 
       <section id="job-detail-view" class="view">

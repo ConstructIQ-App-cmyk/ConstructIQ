@@ -1,4 +1,4 @@
-const CACHE_NAME = 'current-v33';
+const CACHE_NAME = 'current-v35';
 const APP_SHELL = ['./', './index.html', './styles.css', './app.js', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', event => {
