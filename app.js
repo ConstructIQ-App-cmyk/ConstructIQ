@@ -30,7 +30,9 @@ let crews = JSON.parse(localStorage.getItem(crewKey) || '[]');
 let jobs = JSON.parse(localStorage.getItem(jobKey) || '[]');
 let selectedCrewIndex = null;
 let editingJobId = null;
+let selectedJobId = null;
 const crewColors = ['orange', 'blue', 'green'];
+const commercialInspectionDefaults = ['Permit and approved plans on site', 'Underground / slab rough-in', 'Service equipment inspection', 'Grounding and bonding inspection', 'Rough-in wiring inspection', 'Above-ceiling inspection', 'Fire alarm rough-in inspection', 'Emergency and egress lighting inspection', 'Final electrical inspection', 'Final fire alarm inspection'];
 const initials = name => name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase();
 
 function renderProfile() {
@@ -129,6 +131,7 @@ function renderJobs() {
   }).join('') : '<p class="empty-state">No jobs yet. Add your first job to start assigning crews.</p>';
   list.querySelectorAll('.job-card').forEach((card, index) => {
     const job = jobs[index];
+    card.dataset.openJob = job.id;
     const meta = card.querySelector('.job-meta');
     meta.textContent = `${job.type || 'Commercial Jobs'} · ${meta.textContent}`;
     const editButton = document.createElement('button');
@@ -146,6 +149,30 @@ function render() {
   renderCrews();
   renderJobs();
   document.querySelector('#home-member-count').textContent = String(crews.reduce((sum, crew) => sum + crew.members.length, 0)).padStart(2, '0');
+}
+function createCommercialChecklist() {
+  return commercialInspectionDefaults.map((name, index) => ({ id: `inspection-${Date.now()}-${index}`, name, completed: false }));
+}
+function renderInspectionChecklist(job) {
+  const inspections = job.inspections || [];
+  const complete = inspections.filter(item => item.completed).length;
+  document.querySelector('#inspection-progress').textContent = `${complete}/${inspections.length}`;
+  document.querySelector('#inspection-list').innerHTML = inspections.map(item => `<label class="inspection-item"><input type="checkbox" data-inspection-id="${item.id}" ${item.completed ? 'checked' : ''} /><span></span><b>${escapeHtml(item.name)}</b></label>`).join('');
+}
+function openJob(job) {
+  if (!job) return;
+  selectedJobId = job.id;
+  document.querySelector('#job-detail-name').textContent = job.name;
+  document.querySelector('#job-detail-type').textContent = job.type || 'JOB DETAILS';
+  document.querySelector('#job-detail-location').textContent = `${job.location} · Due ${new Date(`${job.due}T12:00:00`).toLocaleDateString()}`;
+  const isCommercial = job.type === 'Commercial Jobs';
+  document.querySelector('#inspection-panel').hidden = !isCommercial;
+  document.querySelector('#non-commercial-panel').hidden = isCommercial;
+  if (isCommercial) {
+    if (!Array.isArray(job.inspections)) { job.inspections = createCommercialChecklist(); saveData(); }
+    renderInspectionChecklist(job);
+  }
+  showView('job-detail');
 }
 function openCrew(index) {
   selectedCrewIndex = index;
@@ -191,7 +218,9 @@ function openJobForm(job = null) {
 document.querySelector('#show-job-form').addEventListener('click', () => openJobForm());
 document.querySelector('#job-list').addEventListener('click', event => {
   const button = event.target.closest('[data-edit-job]');
-  if (button) openJobForm(jobs.find(job => job.id === button.dataset.editJob));
+  if (button) { openJobForm(jobs.find(job => job.id === button.dataset.editJob)); return; }
+  const card = event.target.closest('[data-open-job]');
+  if (card) openJob(jobs.find(job => job.id === card.dataset.openJob));
 });
 document.querySelector('#team-form').addEventListener('submit', event => {
   event.preventDefault(); const name = document.querySelector('#team-name').value.trim(); if (!name) return;
@@ -216,13 +245,35 @@ document.querySelector('#job-form').addEventListener('submit', event => {
   if (editingJobId) {
     const job = jobs.find(item => item.id === editingJobId);
     if (job) Object.assign(job, { name, type, location, due });
+    if (job?.type === 'Commercial Jobs' && !Array.isArray(job.inspections)) job.inspections = createCommercialChecklist();
     crews.forEach(crew => { if (crew.jobId === editingJobId) crew.jobName = name; });
-  } else jobs.push({ id: `${Date.now()}`, name, type, location, due });
+  } else jobs.push({ id: `${Date.now()}`, name, type, location, due, inspections: type === 'Commercial Jobs' ? createCommercialChecklist() : [] });
   editingJobId = null; event.currentTarget.reset(); event.currentTarget.hidden = true; saveData();
 });
 document.querySelector('#crew-assignment-form').addEventListener('submit', event => {
   event.preventDefault(); if (selectedCrewIndex === null) return; const jobId = document.querySelector('#crew-job-select').value; const job = jobs.find(item => item.id === jobId);
   crews[selectedCrewIndex].jobId = jobId; crews[selectedCrewIndex].jobName = job ? job.name : ''; saveData(); showView('teams');
+});
+document.querySelector('#inspection-list').addEventListener('change', event => {
+  const checkbox = event.target.closest('[data-inspection-id]');
+  const job = jobs.find(item => item.id === selectedJobId);
+  if (!checkbox || !job) return;
+  const item = job.inspections.find(inspection => inspection.id === checkbox.dataset.inspectionId);
+  if (!item) return;
+  item.completed = checkbox.checked;
+  saveData();
+  renderInspectionChecklist(job);
+});
+document.querySelector('#custom-inspection-form').addEventListener('submit', event => {
+  event.preventDefault();
+  const job = jobs.find(item => item.id === selectedJobId);
+  const input = document.querySelector('#custom-inspection-name');
+  const name = input.value.trim();
+  if (!job || !name) return;
+  job.inspections.push({ id: `custom-${Date.now()}`, name, completed: false });
+  input.value = '';
+  saveData();
+  renderInspectionChecklist(job);
 });
 document.querySelector('#delete-crew-button').addEventListener('click', () => {
   if (selectedCrewIndex === null || !confirm(`Delete ${crews[selectedCrewIndex].name}? This cannot be undone.`)) return;
