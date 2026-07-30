@@ -19,6 +19,12 @@
     <style>
       .wide-action{width:100%;margin:-5px 0 15px}.crew-button{width:100%;background:#fff;text-align:left;cursor:pointer}.empty-state{padding:17px 12px;border:1px dashed #cbd8d2;border-radius:12px;color:#718087;font-size:13px;line-height:1.4}.home-empty{margin:14px 0}.member-list{display:grid;gap:9px;margin:0 0 18px}.member-row{display:flex;align-items:center;gap:10px;border:1px solid #e5e9e7;border-radius:11px;padding:11px}.member-row>span{width:34px;height:34px;border-radius:50%;background:#dce9e3;color:#356c58;display:grid;place-items:center;font-size:10px;font-weight:800}.member-row strong,.member-row small{display:block}.member-row strong{font-size:13px}.member-row small{font-size:11px;color:#6c7881;margin-top:2px}.assignment-form{margin-top:4px}
     </style>
+    <style>
+      .back-button{color:var(--orange-2)!important}.crew-summary div,.management-form{background:#111e28!important;border:1px solid #2a3d49}.crew-summary span,.crew-info p{color:#9aa9b2!important}.crew-card{border-color:#2a3d49!important;background:#111e28}.crew-info h3{color:#fff}.avatars span{background:#223a42!important;color:#a7f0d4!important;border-color:#111e28!important}.team-actions .secondary-action{background:#111e28;color:var(--orange-2);border-color:#59451d}.team-actions .primary-action,.management-form .primary-action{background:var(--orange);color:#172029;border-color:#ffbd51}.management-form input,.management-form select{background:#0b151d;color:#fff;border-color:#334653}.list-label{color:var(--orange-2)!important}.wide-action{background:var(--orange)!important;color:#182129!important}.empty-state{border-color:#3e525d!important;color:#9aa9b2!important}.member-row{background:#111e28;border-color:#2a3d49}.member-row>span{background:#223a42!important;color:#a7f0d4!important}.member-row strong{color:#fff}.member-row small{color:#9aa9b2}
+    </style>
+    <style>
+      #home-view>.hero-card,#home-view>.metric-grid,#home-view>.section-heading,#home-view>.stock-alert,#home-view>#home-next-job{display:none}.command-deck{border:1px solid #4f606a;background:#0b141c;box-shadow:10px 10px 0 #020608;position:relative;overflow:hidden}.command-deck:before{content:"";position:absolute;inset:0;background:linear-gradient(120deg,transparent 48%,#ff9e1b18 48% 50%,transparent 50%),repeating-linear-gradient(90deg,transparent 0 28px,#ffffff05 29px 30px)}.deck-top,.deck-footer{position:relative;display:flex;justify-content:space-between;padding:10px 13px;font-size:9px;font-weight:900;letter-spacing:1.2px;color:#a7bac4}.deck-top{border-bottom:1px solid #31424d}.deck-footer{border-top:1px solid #31424d;color:#ffcc60}.signal-dot{width:7px;height:7px;border-radius:50%;background:#4ed49b;box-shadow:0 0 10px #4ed49b;margin:2px 7px 0 0}.deck-top span:nth-child(2){margin-right:auto}.deck-body{position:relative;display:flex;justify-content:space-between;align-items:center;padding:18px 15px 16px}.deck-body p{margin:0;color:#9aa9b2;font-size:10px;font-weight:900;letter-spacing:1.3px;line-height:1.2}.deck-body strong{display:block;color:#fff;font-size:54px;letter-spacing:-3px;line-height:.85;margin-top:4px}.deck-body button{border:1px solid #ffb338;background:#ff9e1b;color:#14212a;font-size:11px;font-weight:900;line-height:1.25;text-align:left;padding:13px 17px;box-shadow:5px 5px 0 #593c10}.deck-body b{font-size:17px;float:right;margin-left:9px}.status-rail{display:grid;grid-template-columns:repeat(3,1fr);margin:21px 0;border:1px solid #2e404c;background:#101b25}.status-rail article{padding:12px 10px;border-right:1px solid #2e404c}.status-rail article:last-child{border:0}.status-rail span{color:#a5b4bc;font-size:8px;font-weight:900;letter-spacing:.9px;display:block;line-height:1.2}.status-rail strong{font-size:26px;color:#fff;margin-top:4px;display:block}.status-rail article:last-child strong{color:#ffb84c}.deployment-board{border-left:3px solid #ff9e1b;padding:0 0 0 13px;margin-top:12px}.board-heading{display:flex;justify-content:space-between;align-items:center}.board-heading span{font-size:9px;color:#ffcc60;font-weight:900;letter-spacing:1.5px}.board-heading button{border:0;background:transparent;color:#9fb3bd;font-size:9px;font-weight:900;letter-spacing:1px}.deployment-board h2{font-size:24px;margin:5px 0 4px;color:#fff;letter-spacing:-.8px}.deployment-board .job-card{margin-top:12px}.command-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:25px}.command-actions button{position:relative;text-align:left;min-height:92px;border:1px solid #30434e;background:#12212b;color:#fff;padding:13px 9px 9px}.command-actions button:first-child{border-top:3px solid #ff9e1b}.command-actions button:last-child{border-top:3px solid #4ed49b}.command-actions b{display:block;font-size:10px;letter-spacing:.5px}.command-actions small{display:block;color:#9aabb5;font-size:10px;line-height:1.25;margin-top:9px;width:80%}.command-actions em{position:absolute;right:9px;bottom:8px;color:#ffcc60;font-size:19px;font-style:normal}
+    </style>
   </head>
   <body>
     <main class="app-shell">
@@ -32,6 +38,18 @@
       </header>
 
       <section id="home-view" class="view active">
+        <section class="command-deck">
+          <div class="deck-top"><span class="signal-dot"></span><span>FIELD OPS / LIVE COMMAND</span><span>SYNC 100%</span></div>
+          <div class="deck-body"><div><p>ACTIVE<br />JOBS</p><strong id="home-job-count">0</strong></div><button data-target="jobs">OPEN<br />JOB BOARD <b>&rarr;</b></button></div>
+          <div class="deck-footer"><span>CONSTRUCTIQ</span><span>OPERATIONS CENTER</span></div>
+        </section>
+        <section class="status-rail" aria-label="Today's metrics">
+          <article><span>CREW ON SITE</span><strong id="home-member-count">00</strong></article>
+          <article><span>TASKS OPEN</span><strong id="home-task-count">00</strong></article>
+          <article><span>STOCK FLAGS</span><strong>00</strong></article>
+        </section>
+        <section class="deployment-board"><div class="board-heading"><span>FIELD QUEUE</span><button data-target="jobs">VIEW ALL</button></div><h2>Next deployment</h2><div id="home-next-job"></div></section>
+        <section class="command-actions"><button data-target="inventory"><b>! &nbsp; MATERIAL CONTROL</b><small>Inventory and low-stock alerts</small><em>&rarr;</em></button><button data-target="teams"><b>+ &nbsp; CREW COMMAND</b><small>Teams, people, and assignments</small><em>&rarr;</em></button></section>
         <section class="hero-card">
           <div class="hero-copy">
             <p class="eyebrow">TODAY'S OPERATIONS</p>
@@ -77,7 +95,7 @@
 
       <section id="more-view" class="view">
         <div class="page-heading"><p class="eyebrow">WORKSPACE</p><h2>More tools</h2></div>
-        <div class="tool-list"><button data-target="teams">Team & crews <span>›</span></button><button>Reports <span>›</span></button><button>Settings <span>›</span></button></div>
+        <div class="tool-list"><button>Reports <span>›</span></button><button>Settings <span>›</span></button></div>
       </section>
 
       <section id="teams-view" class="view">
@@ -108,6 +126,7 @@
       <nav class="bottom-nav" aria-label="Main navigation">
         <button class="nav-item active" data-target="home"><span>⌂</span>Home</button>
         <button class="nav-item" data-target="jobs"><span>▤</span>Jobs</button>
+        <button class="nav-item" data-target="teams"><span>♙</span>Crews</button>
         <button class="nav-item" data-target="inventory"><span>▦</span>Stock</button>
         <button class="nav-item" data-target="more"><span>•••</span>More</button>
       </nav>
