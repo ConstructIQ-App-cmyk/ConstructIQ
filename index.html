@@ -30,6 +30,7 @@
       .profile-modal{position:fixed;z-index:10;inset:0;background:#020609e8;display:grid;place-items:center;padding:20px}.profile-card{width:min(360px,100%);border:1px solid #ffb338;background:#101e29;padding:23px;box-shadow:9px 9px 0 #000}.profile-card h2{font-size:25px;line-height:1.05;margin:8px 0;color:#fff}.profile-card p:not(.eyebrow){color:#9aa9b2;font-size:13px;line-height:1.45}.profile-card input{width:100%;padding:12px;margin:10px 0;border:1px solid #38505c;background:#071017;color:#fff}.profile-card button{width:100%;padding:12px;border:1px solid #ffb338;background:#ff9e1b;color:#172029;font-weight:900}.profile-modal[hidden]{display:none}
       .edit-job-button{align-self:center;margin:0 11px 0 0;border:1px solid #5a6870;background:#172731;color:#ffcc60;padding:7px 8px;font-size:9px;font-weight:900;letter-spacing:.8px}
       .remove-member-button{margin-left:auto;border:1px solid #74423e;background:#2b1a1a;color:#ff9d92;padding:6px 7px;font-size:8px;font-weight:900;letter-spacing:.7px}.delete-crew-button{width:100%;margin-top:12px;border:1px solid #85443f;background:#281717;color:#ff9d92;padding:12px;font-size:12px;font-weight:900}
+      .quick-add-overlay{position:fixed;z-index:20;inset:0;background:#020609a6;opacity:0;transition:opacity .25s ease}.quick-add-overlay.open{opacity:1}.quick-add-sheet{position:fixed;z-index:21;left:0;right:0;bottom:0;max-width:480px;margin:auto;padding:10px 16px 27px;background:#101e29;border:1px solid #3b4e5a;transform:translateY(105%);transition:transform .34s cubic-bezier(.2,.8,.2,1);box-shadow:0 -20px 45px #0008}.quick-add-sheet.open{transform:translateY(0)}.sheet-handle{width:38px;height:4px;background:#60727c;border-radius:3px;margin:0 auto 16px}.sheet-heading{display:flex;justify-content:space-between;align-items:start;margin-bottom:11px}.sheet-heading h2{font-size:21px;color:#fff;margin:4px 0 0}.sheet-heading button{border:1px solid #41535e;background:#172731;color:#fff;width:31px;height:31px;font-size:22px;line-height:1}.quick-add-sheet>button[data-quick-action]{width:100%;display:flex;align-items:center;gap:11px;text-align:left;background:#142630;border:1px solid #304550;color:#fff;padding:11px;margin-top:7px}.quick-add-sheet>button[data-quick-action]>span{width:32px;height:32px;display:grid;place-items:center;background:#263c46;color:#ffcc60;font-size:13px;font-weight:900}.quick-add-sheet b,.quick-add-sheet small{display:block}.quick-add-sheet b{font-size:13px}.quick-add-sheet small{font-size:10px;color:#a3b3bb;margin-top:2px}.quick-add-sheet em{margin-left:auto;color:#ffcc60;font-size:20px;font-style:normal}
     </style>
   </head>
   <body>
@@ -90,6 +91,7 @@
       <section id="inventory-view" class="view">
         <div class="page-heading"><p class="eyebrow">STOCKROOM</p><h2>Inventory</h2></div>
         <label class="search"><span>⌕</span><input id="stock-search" placeholder="Search materials or SKU" /></label>
+        <form class="management-form" id="issue-form" hidden><h3>Issue material</h3><input id="issue-material" maxlength="50" placeholder="Material name" required /><input id="issue-quantity" type="number" min="1" placeholder="Quantity issued" required /><button class="primary-action" type="submit">Record issue</button></form>
         <div class="inventory-summary"><div><strong>128</strong><span>SKUs in stock</span></div><div class="critical"><strong>4</strong><span>Need attention</span></div></div>
         <div class="inventory-list" id="inventory-list">
           <article class="inventory-item low" data-name="3/4 in EMT conduit"><div class="material-icon">≡</div><div><h3>3/4 in. EMT conduit</h3><p>EMT-075 · Main stockroom</p></div><div class="quantity"><strong>42</strong><span>Low · min 60</span></div></article>
@@ -141,6 +143,16 @@
         <button class="nav-item" data-target="more"><span>•••</span>More</button>
       </nav>
     </main>
+    <div class="quick-add-overlay" id="quick-add-overlay" hidden></div>
+    <section class="quick-add-sheet" id="quick-add-sheet" aria-label="Quick add menu" aria-hidden="true">
+      <div class="sheet-handle"></div><div class="sheet-heading"><div><p class="eyebrow">QUICK ADD</p><h2>What do you need?</h2></div><button id="close-quick-add" aria-label="Close menu">&times;</button></div>
+      <button data-quick-action="job"><span>J</span><div><b>Add job</b><small>Create and classify new work</small></div><em>&rarr;</em></button>
+      <button data-quick-action="crew"><span>C</span><div><b>Add crew</b><small>Set up a new field team</small></div><em>&rarr;</em></button>
+      <button data-quick-action="member"><span>M</span><div><b>Add crew member</b><small>Assign a person to a crew</small></div><em>&rarr;</em></button>
+      <button data-quick-action="material"><span>#</span><div><b>Issue material</b><small>Record material sent to a job</small></div><em>&rarr;</em></button>
+      <button data-quick-action="photo"><span>P</span><div><b>Add job-site photo</b><small>Choose a photo from this device</small></div><em>&rarr;</em></button>
+    </section>
+    <input id="photo-input" type="file" accept="image/*" capture="environment" hidden />
     <div class="profile-modal" id="profile-modal" hidden>
       <form id="profile-form" class="profile-card"><p class="eyebrow">WELCOME TO CONSTRUCTIQ</p><h2>Who is using this device?</h2><p>Your name appears only on this device's app.</p><input id="profile-input" maxlength="30" placeholder="First name" required autofocus /><button type="submit">Save my name</button></form>
     </div>

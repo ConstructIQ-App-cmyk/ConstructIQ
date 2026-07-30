@@ -180,7 +180,53 @@ document.querySelectorAll('.filter').forEach(filter => filter.addEventListener('
 const search = document.querySelector('#stock-search');
 search?.addEventListener('input', () => { const term = search.value.toLowerCase(); document.querySelectorAll('.inventory-item').forEach(item => { item.style.display = item.dataset.name.toLowerCase().includes(term) ? 'flex' : 'none'; }); });
 const toast = document.querySelector('#toast');
-document.querySelector('#add-button').addEventListener('click', () => { toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 2400); });
+const showToast = message => {
+  toast.textContent = message;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2400);
+};
+const quickSheet = document.querySelector('#quick-add-sheet');
+const quickOverlay = document.querySelector('#quick-add-overlay');
+const closeQuickAdd = () => {
+  quickSheet.classList.remove('open');
+  quickSheet.setAttribute('aria-hidden', 'true');
+  quickOverlay.classList.remove('open');
+  setTimeout(() => { quickOverlay.hidden = true; }, 260);
+};
+document.querySelector('#add-button').addEventListener('click', () => {
+  quickOverlay.hidden = false;
+  requestAnimationFrame(() => {
+    quickSheet.classList.add('open');
+    quickSheet.setAttribute('aria-hidden', 'false');
+    quickOverlay.classList.add('open');
+  });
+});
+document.querySelector('#close-quick-add').addEventListener('click', closeQuickAdd);
+quickOverlay.addEventListener('click', closeQuickAdd);
+document.querySelector('#quick-add-sheet').addEventListener('click', event => {
+  const action = event.target.closest('[data-quick-action]')?.dataset.quickAction;
+  if (!action) return;
+  closeQuickAdd();
+  if (action === 'job') { showView('jobs'); openJobForm(); }
+  if (action === 'crew') { showView('teams'); document.querySelector('#team-form').hidden = false; document.querySelector('#member-form').hidden = true; }
+  if (action === 'member') { showView('teams'); document.querySelector('#member-form').hidden = false; document.querySelector('#team-form').hidden = true; }
+  if (action === 'material') { showView('inventory'); document.querySelector('#issue-form').hidden = false; }
+  if (action === 'photo') document.querySelector('#photo-input').click();
+});
+document.querySelector('#issue-form').addEventListener('submit', event => {
+  event.preventDefault();
+  const material = document.querySelector('#issue-material').value.trim();
+  const quantity = document.querySelector('#issue-quantity').value;
+  if (!material || !quantity) return;
+  event.currentTarget.reset();
+  event.currentTarget.hidden = true;
+  showToast(`${quantity} ${material} issued`);
+});
+document.querySelector('#photo-input').addEventListener('change', event => {
+  const photo = event.target.files[0];
+  if (photo) showToast(`${photo.name} selected`);
+  event.target.value = '';
+});
 render();
 renderProfile();
 if (!profileName) document.querySelector('#profile-modal').hidden = false;
