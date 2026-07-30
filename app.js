@@ -6,6 +6,7 @@ const supabaseClient = window.supabase?.createClient(supabaseUrl, supabaseAnonKe
 const showView = target => {
   views.forEach(view => view.classList.toggle('active', view.id === `${target}-view`));
   navItems.forEach(item => item.classList.toggle('active', item.dataset.target === target));
+  document.querySelector('#add-button').hidden = target === 'job-detail';
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 document.querySelectorAll('[data-target]').forEach(button => button.addEventListener('click', () => showView(button.dataset.target)));
