@@ -42,6 +42,9 @@
     <style>
       .auth-modal{position:fixed;z-index:30;inset:0;background:#020609f2;display:grid;place-items:center;padding:20px}.auth-modal[hidden]{display:none}.auth-card{width:min(370px,100%);border:1px solid #ffb338;background:#101e29;padding:25px;box-shadow:10px 10px 0 #000}.auth-card h2{font-size:26px;line-height:1.05;color:#fff;margin:8px 0}.auth-card p:not(.eyebrow){font-size:13px;color:#a8b6be;line-height:1.45}.auth-card input{width:100%;padding:12px;margin:5px 0;border:1px solid #38505c;background:#071017;color:#fff}.auth-card button{width:100%;padding:12px;margin-top:8px;border:1px solid #ffb338;background:#ff9e1b;color:#172029;font-weight:900}.auth-card #auth-toggle{background:transparent;border-color:#41535e;color:#c7d2d8}.auth-message{min-height:18px!important;margin:7px 0 0!important;color:#a7f0d4!important;font-size:11px!important}.auth-message.error{color:#ff9d92!important}
     </style>
+    <style>
+      .tools-section-heading{display:flex;align-items:end;justify-content:space-between;margin:25px 0 10px}.tools-section-heading h3{font-size:20px;color:#fff;margin:4px 0 0}.tools-section-heading button{border:1px solid #ffb338;background:#172731;color:#ffcc60;padding:8px 10px;font-size:10px;font-weight:900}.stock-location-list{display:grid;gap:8px}.stock-location-record{display:flex;align-items:center;gap:10px;background:#111f29;border:1px solid #30434e;padding:11px}.stock-location-record>span{width:34px;height:34px;display:grid;place-items:center;background:#263b45;color:#ffcc60;font-size:11px;font-weight:900}.stock-location-record b,.stock-location-record small{display:block}.stock-location-record b{color:#fff;font-size:13px}.stock-location-record small{color:#a3b3bb;font-size:10px;margin-top:3px}
+    </style>
   </head>
   <body>
     <main class="app-shell">
@@ -134,6 +137,9 @@
         <button class="primary-action wide-action" id="show-tool-form">+ Add tool</button>
         <form class="management-form" id="tool-form" hidden><h3>Add tool</h3><input id="tool-name" maxlength="50" placeholder="Tool name" required /><input id="tool-id" maxlength="40" placeholder="Tool ID or serial number" /><div class="form-actions"><button class="primary-action" type="submit">Add tool</button><button class="cancel-action" data-cancel-form="tool-form" type="button">Cancel</button></div></form>
         <div id="tool-list" class="tool-register"></div>
+        <div class="tools-section-heading"><div><p class="eyebrow">STOCK LOCATIONS</p><h3>Stock control</h3></div><button id="show-stock-location-form">+ Add stock</button></div>
+        <form class="management-form" id="stock-location-form" hidden><h3>Add stock location</h3><select id="stock-location-type" required><option value="Shop Stock">Shop stock</option><option value="Truck Stock">Truck stock</option><option value="Jobsite Stock">Jobsite stock</option></select><input id="stock-location-name" maxlength="50" placeholder="Location name (e.g. Mike's truck)" required /><div class="form-actions"><button class="primary-action" type="submit">Add location</button><button class="cancel-action" data-cancel-form="stock-location-form" type="button">Cancel</button></div></form>
+        <div id="stock-location-list" class="stock-location-list"></div>
       </section>
 
       <section id="settings-view" class="view">

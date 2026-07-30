@@ -17,6 +17,7 @@ const dataVersion = 'current-field-data-v2';
 const crewKey = 'current-crews-v2';
 const jobKey = 'current-jobs-v2';
 const toolKey = 'current-tools-v1';
+const stockLocationKey = 'current-stock-locations-v1';
 const profileKey = 'current-profile-name';
 const profileFullNameKey = 'current-profile-full-name';
 const hadExistingInstall = localStorage.getItem(dataVersion) === 'ready';
@@ -35,6 +36,7 @@ if (!profileName && hadExistingInstall) {
 let crews = JSON.parse(localStorage.getItem(crewKey) || '[]');
 let jobs = JSON.parse(localStorage.getItem(jobKey) || '[]');
 let tools = JSON.parse(localStorage.getItem(toolKey) || '[]');
+let stockLocations = JSON.parse(localStorage.getItem(stockLocationKey) || '[]');
 let selectedCrewIndex = null;
 let editingJobId = null;
 let selectedJobId = null;
@@ -136,6 +138,10 @@ function saveTools() {
   localStorage.setItem(toolKey, JSON.stringify(tools));
   renderTools();
 }
+function saveStockLocations() {
+  localStorage.setItem(stockLocationKey, JSON.stringify(stockLocations));
+  renderStockLocations();
+}
 function renderCrews() {
   const list = document.querySelector('#crew-list');
   const select = document.querySelector('#member-crew');
@@ -173,12 +179,18 @@ function render() {
   renderCrews();
   renderJobs();
   renderTools();
+  renderStockLocations();
   document.querySelector('#home-member-count').textContent = String(crews.reduce((sum, crew) => sum + crew.members.length, 0)).padStart(2, '0');
 }
 function renderTools() {
   const list = document.querySelector('#tool-list');
   if (!list) return;
   list.innerHTML = tools.length ? tools.map(tool => `<article class="tool-record"><span class="tool-mark">T</span><div><h3>${escapeHtml(tool.name)}</h3><p>${escapeHtml(tool.toolId || 'No tool ID')} · ${tool.checkedOutTo ? `Out to ${escapeHtml(tool.checkedOutTo)}` : 'Available'}</p></div><button data-tool-action="${tool.checkedOutTo ? 'checkin' : 'checkout'}" data-tool-id="${tool.id}" class="${tool.checkedOutTo ? 'checkin-tool' : 'checkout-tool'}">${tool.checkedOutTo ? 'CHECK IN' : 'CHECK OUT'}</button></article>`).join('') : '<p class="empty-state">No tools added yet. Add equipment to begin tracking check in/out.</p>';
+}
+function renderStockLocations() {
+  const list = document.querySelector('#stock-location-list');
+  if (!list) return;
+  list.innerHTML = stockLocations.length ? stockLocations.map(location => `<article class="stock-location-record"><span>${location.type === 'Truck Stock' ? 'T' : location.type === 'Shop Stock' ? 'S' : 'J'}</span><div><b>${escapeHtml(location.name)}</b><small>${escapeHtml(location.type)}</small></div></article>`).join('') : '<p class="empty-state">No stock locations yet. Add your shop, truck, or job-site stock.</p>';
 }
 function createCommercialChecklist() {
   return commercialInspectionDefaults.map((name, index) => ({ id: `inspection-${Date.now()}-${index}`, name, completed: false }));
@@ -237,6 +249,9 @@ document.querySelector('#show-member-form').addEventListener('click', () => {
 document.querySelector('#show-tool-form').addEventListener('click', () => {
   document.querySelector('#tool-form').hidden = !document.querySelector('#tool-form').hidden;
 });
+document.querySelector('#show-stock-location-form').addEventListener('click', () => {
+  document.querySelector('#stock-location-form').hidden = !document.querySelector('#stock-location-form').hidden;
+});
 function openJobForm(job = null) {
   editingJobId = job?.id || null;
   const form = document.querySelector('#job-form');
@@ -278,6 +293,16 @@ document.querySelector('#tool-form').addEventListener('submit', event => {
   event.currentTarget.reset();
   event.currentTarget.hidden = true;
   saveTools();
+});
+document.querySelector('#stock-location-form').addEventListener('submit', event => {
+  event.preventDefault();
+  const type = document.querySelector('#stock-location-type').value;
+  const name = document.querySelector('#stock-location-name').value.trim();
+  if (!name) return;
+  stockLocations.push({ id: `stock-${Date.now()}`, type, name });
+  event.currentTarget.reset();
+  event.currentTarget.hidden = true;
+  saveStockLocations();
 });
 document.querySelector('#tool-list').addEventListener('click', event => {
   const button = event.target.closest('[data-tool-action]');
