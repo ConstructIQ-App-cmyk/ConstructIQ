@@ -13,6 +13,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
       .team-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:-6px 0 16px}.primary-action,.secondary-action{border-radius:9px;padding:10px 8px;font-size:12px;font-weight:800;cursor:pointer}.primary-action{background:#0a1f2f;color:#fff;border:1px solid #0a1f2f}.secondary-action{background:#fff;color:#39755f;border:1px solid #b9d3c6}.management-form{background:#f2f6f3;border-radius:12px;padding:14px;margin:-4px 0 18px}.management-form h3{font-size:14px;margin:0 0 11px}.management-form input,.management-form select{display:block;width:100%;border:1px solid #d8e1dc;border-radius:8px;background:#fff;padding:11px;margin:0 0 9px;font-size:13px}.management-form .primary-action{width:100%}
+      .workspace-banner{position:relative;z-index:1;display:flex;align-items:center;gap:9px;margin:-12px 4px 21px;padding:9px 11px;border:1px solid #345261;border-left:3px solid #4ed49b;background:#10222d;color:#fff}.workspace-banner[hidden]{display:none}.workspace-banner span{color:#8fa8b4;font-size:8px;font-weight:900;letter-spacing:1.2px}.workspace-banner b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#a7f0d4;font-size:11px;letter-spacing:.45px}
     </style>
     <style>
       .back-button{border:0;background:transparent;color:#39755f;font-size:13px;font-weight:700;padding:0;margin:5px 0 17px}.crew-summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:23px}.crew-summary div{background:#f2f6f3;border-radius:12px;padding:14px}.crew-summary strong{font-size:23px;display:block}.crew-summary span{font-size:11px;color:#6c7881}.list-label{font-size:10px;font-weight:800;letter-spacing:1px;color:#738087;margin:0 0 9px}.crew-card{display:flex;align-items:center;border:1px solid #e5e9e7;border-radius:13px;padding:12px;margin-top:9px}.crew-badge{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;color:#fff;font-size:16px;font-weight:800;margin-right:11px}.crew-badge.orange{background:#f0a13a}.crew-badge.blue{background:#5786bb}.crew-badge.green{background:#4caa81}.crew-info{flex:1}.crew-info h3{font-size:14px;margin:0 0 3px}.crew-info p{color:#6c7881;font-size:11px;margin:0}.status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#43a77d;margin:0 0 1px 3px}.avatars{display:flex;margin-top:8px}.avatars span{background:#dce9e3;color:#356c58;width:21px;height:21px;border:2px solid #fff;border-radius:50%;display:grid;place-items:center;font-size:7px;font-weight:800;margin-right:-5px}
@@ -64,6 +65,7 @@
         </div>
         <button class="icon-button" aria-label="Open settings" data-target="settings">&#9881;</button>
       </header>
+      <div class="workspace-banner" id="workspace-banner" hidden><span>COMPANY WORKSPACE</span><b id="company-workspace-name"></b></div>
 
       <section id="home-view" class="view active">
         <section class="command-deck">
@@ -232,7 +234,7 @@
       <form id="profile-form" class="profile-card"><p class="eyebrow">WELCOME TO CONSTRUCTIQ</p><h2>Who is using this device?</h2><p>Your name appears only on this device's app.</p><input id="profile-input" maxlength="50" placeholder="First and last name" required autofocus /><button type="submit">Save my name</button></form>
     </div>
     <div class="toast" id="toast">Material issue started</div>
-    <script src="app.js?v=40"></script>
+    <script src="app.js?v=41"></script>
     <script>
       if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js');
     </script>

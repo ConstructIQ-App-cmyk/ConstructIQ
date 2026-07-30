@@ -229,6 +229,9 @@ async function loadSharedState() {
 function updateCompanyUI() {
   document.querySelector('#company-join-code').textContent = companyInfo?.join_code || 'Not connected';
   document.querySelector('#company-sync-status').textContent = companyInfo?.name ? `${companyInfo.name} · shared live` : 'Not connected';
+  const workspaceBanner = document.querySelector('#workspace-banner');
+  workspaceBanner.hidden = !companyInfo?.name;
+  document.querySelector('#company-workspace-name').textContent = companyInfo?.name || '';
 }
 function subscribeToCompanyState() {
   if (!supabaseClient || !activeCompanyId) return;
