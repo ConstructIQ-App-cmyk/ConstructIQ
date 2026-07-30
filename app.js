@@ -165,7 +165,9 @@ function renderJobs() {
   const list = document.querySelector('#job-list');
   list.innerHTML = jobs.length ? jobs.map(job => {
     const assigned = crews.filter(crew => crew.jobId === job.id).map(crew => crew.name).join(', ') || 'No crew assigned';
-    return `<article class="job-card"><div class="job-color blue"></div><div class="job-content"><p class="job-meta">DUE ${new Date(`${job.due}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase()}</p><h3>${escapeHtml(job.name)}</h3><p>${escapeHtml(job.location)} · ${escapeHtml(assigned)}</p><div class="progress"><span style="width:0%"></span></div></div></article>`;
+    const dueLabel = job.due ? new Date(`${job.due}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase() : 'NO DUE DATE';
+    const locationLabel = job.location || 'No location added';
+    return `<article class="job-card"><div class="job-color blue"></div><div class="job-content"><p class="job-meta">DUE ${dueLabel}</p><h3>${escapeHtml(job.name)}</h3><p>${escapeHtml(locationLabel)} · ${escapeHtml(assigned)}</p><div class="progress"><span style="width:0%"></span></div></div></article>`;
   }).join('') : '<p class="empty-state">No jobs yet. Add your first job to start assigning crews.</p>';
   list.querySelectorAll('.job-card').forEach((card, index) => {
     const job = jobs[index];
@@ -179,7 +181,7 @@ function renderJobs() {
     card.append(editButton);
   });
   const homeNext = document.querySelector('#home-next-job');
-  homeNext.innerHTML = jobs.length ? `<article class="job-card" data-target="jobs"><div class="job-color blue"></div><div class="job-content"><p class="job-meta">UP NEXT</p><h3>${escapeHtml(jobs[0].name)}</h3><p>${escapeHtml(jobs[0].location)}</p><div class="progress"><span style="width:0%"></span></div></div><span class="chevron">›</span></article>` : '<p class="empty-state home-empty">No jobs created yet.</p>';
+  homeNext.innerHTML = jobs.length ? `<article class="job-card" data-target="jobs"><div class="job-color blue"></div><div class="job-content"><p class="job-meta">UP NEXT</p><h3>${escapeHtml(jobs[0].name)}</h3><p>${escapeHtml(jobs[0].location || 'No location added')}</p><div class="progress"><span style="width:0%"></span></div></div><span class="chevron">›</span></article>` : '<p class="empty-state home-empty">No jobs created yet.</p>';
   homeNext.querySelector('[data-target]')?.addEventListener('click', () => showView('jobs'));
   document.querySelector('#home-job-count').textContent = jobs.length;
 }
@@ -275,7 +277,8 @@ function openJob(job) {
   selectedJobId = job.id;
   document.querySelector('#job-detail-name').textContent = job.name;
   document.querySelector('#job-detail-type').textContent = job.type || 'JOB DETAILS';
-  document.querySelector('#job-detail-location').textContent = `${job.location} · Due ${new Date(`${job.due}T12:00:00`).toLocaleDateString()}`;
+  const dueLabel = job.due ? new Date(`${job.due}T12:00:00`).toLocaleDateString() : 'No due date added';
+  document.querySelector('#job-detail-location').textContent = `${job.location || 'No location added'} · ${dueLabel}`;
   const isCommercial = job.type === 'Commercial Jobs';
   document.querySelector('#inspection-panel').hidden = !isCommercial;
   document.querySelector('#non-commercial-panel').hidden = isCommercial;
@@ -478,7 +481,7 @@ document.querySelector('#crew-member-form').addEventListener('submit', event => 
 });
 document.querySelector('#job-form').addEventListener('submit', event => {
   event.preventDefault(); const name = document.querySelector('#job-name').value.trim(); const type = document.querySelector('#job-type').value; const location = document.querySelector('#job-location').value.trim(); const due = document.querySelector('#job-due').value;
-  if (!name || !type || !location || !due) return;
+  if (!name || !type) return;
   if (editingJobId) {
     const job = jobs.find(item => item.id === editingJobId);
     if (job) Object.assign(job, { name, type, location, due });
