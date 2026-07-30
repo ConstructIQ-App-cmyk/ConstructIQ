@@ -118,16 +118,11 @@
         <div class="page-heading"><p class="eyebrow">STOCKROOM</p><h2>Inventory</h2></div>
         <label class="search"><span>⌕</span><input id="stock-search" placeholder="Search materials or SKU" /></label>
         <form class="management-form" id="issue-form" hidden><h3>Issue material</h3><input id="issue-material" maxlength="50" placeholder="Material name" required /><input id="issue-quantity" type="number" min="1" placeholder="Quantity issued" required /><div class="form-actions"><button class="primary-action" type="submit">Record issue</button><button class="cancel-action" data-cancel-form="issue-form" type="button">Cancel</button></div></form>
-        <div class="inventory-summary"><div><strong>128</strong><span>SKUs in stock</span></div><div class="critical"><strong>4</strong><span>Need attention</span></div></div>
+        <div class="inventory-summary"><div><strong>00</strong><span>SKUs in stock</span></div><div class="critical"><strong>00</strong><span>Need attention</span></div></div>
         <div class="tools-section-heading"><div><p class="eyebrow">STOCK LOCATIONS</p><h3>Stock control</h3></div><button id="show-stock-location-form">+ Add stock</button></div>
         <form class="management-form" id="stock-location-form" hidden><h3>Add stock location</h3><select id="stock-location-type" required><option value="Shop Stock">Shop stock</option><option value="Truck Stock">Truck stock</option><option value="Jobsite Stock">Jobsite stock</option></select><input id="stock-location-name" maxlength="50" placeholder="Location name (e.g. Mike's truck)" required /><div class="form-actions"><button class="primary-action" type="submit">Add location</button><button class="cancel-action" data-cancel-form="stock-location-form" type="button">Cancel</button></div></form>
         <div id="stock-location-list" class="stock-location-list"></div>
-        <div class="inventory-list" id="inventory-list">
-          <article class="inventory-item low" data-name="3/4 in EMT conduit"><div class="material-icon">≡</div><div><h3>3/4 in. EMT conduit</h3><p>EMT-075 · Main stockroom</p></div><div class="quantity"><strong>42</strong><span>Low · min 60</span></div></article>
-          <article class="inventory-item low" data-name="Yellow wire nut box"><div class="material-icon">◈</div><div><h3>Yellow wire nut box</h3><p>IDEAL-74B · Van 04</p></div><div class="quantity"><strong>3</strong><span>Low · min 8</span></div></article>
-          <article class="inventory-item" data-name="20A GFCI receptacle"><div class="material-icon">▣</div><div><h3>20A GFCI receptacle</h3><p>GF20-W · Main stockroom</p></div><div class="quantity"><strong>86</strong><span>Healthy</span></div></article>
-          <article class="inventory-item" data-name="12/2 NM-B cable"><div class="material-icon">⊙</div><div><h3>12/2 NM-B cable</h3><p>NM122-250 · Main stockroom</p></div><div class="quantity"><strong>14</strong><span>Rolls</span></div></article>
-        </div>
+        <div class="inventory-list" id="inventory-list"><p class="empty-state">No inventory items yet. Add stock to a location to begin tracking materials.</p></div>
       </section>
 
       <section id="stock-detail-view" class="view">
