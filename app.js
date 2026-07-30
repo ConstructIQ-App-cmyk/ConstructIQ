@@ -8,7 +8,7 @@ let activeCompanyId = localStorage.getItem('current-active-company-id') || null;
 let companyInfo = null;
 let companyChannel = null;
 const showView = target => {
-  const parentTabs = { 'job-detail': 'jobs', 'crew-detail': 'teams', 'stock-detail': 'inventory', settings: 'more' };
+  const parentTabs = { 'job-detail': 'jobs', 'crew-detail': 'teams', 'stock-detail': 'inventory', settings: 'more', reports: 'more' };
   const activeTab = parentTabs[target] || target;
   views.forEach(view => view.classList.toggle('active', view.id === `${target}-view`));
   navItems.forEach(item => item.classList.toggle('active', item.dataset.target === activeTab));
@@ -341,7 +341,35 @@ function render() {
   renderMaterialCatalog();
   renderTodaySchedule();
   renderServiceNotes();
+  renderReports();
   document.querySelector('#home-member-count').textContent = String(crews.reduce((sum, crew) => sum + crew.members.length, 0)).padStart(2, '0');
+}
+function renderReports() {
+  const overview = document.querySelector('#report-overview');
+  const list = document.querySelector('#reports-list');
+  if (!overview || !list) return;
+  const crewMembers = crews.reduce((sum, crew) => sum + crew.members.length, 0);
+  const allStock = stockLocations.flatMap(location => location.items || []);
+  const lowStock = stockAttentionItems().length;
+  const commercialJobs = jobs.filter(job => job.type === 'Commercial Jobs');
+  const inspections = commercialJobs.flatMap(job => Array.isArray(job.inspections) ? job.inspections : []);
+  const inspectionsComplete = inspections.filter(item => item.completed).length;
+  const serviceJobs = jobs.filter(job => ['Service', 'Generators', 'Generator Service'].includes(job.type));
+  const checkedOutTools = tools.filter(tool => tool.checkedOutTo).length;
+  const assignedCrews = crews.filter(crew => crew.jobId).length;
+  overview.innerHTML = `<article><span>ACTIVE JOBS</span><strong>${jobs.length}</strong><small>${assignedCrews} crew assigned</small></article><article><span>FIELD TODAY</span><strong>${todaySchedule.length}</strong><small>assignments</small></article><article><span>STOCK FLAGS</span><strong>${lowStock}</strong><small>${allStock.length} items tracked</small></article>`;
+  const reports = [
+    { mark: 'DAY', title: 'Daily field report', detail: `${todaySchedule.length} assignment${todaySchedule.length === 1 ? '' : 's'} scheduled today · ${crewMembers} crew member${crewMembers === 1 ? '' : 's'} on roster`, target: 'home' },
+    { mark: 'JOB', title: 'Job progress report', detail: `${jobs.length} active job${jobs.length === 1 ? '' : 's'} · ${assignedCrews} crew${assignedCrews === 1 ? '' : 's'} assigned`, target: 'jobs' },
+    { mark: 'SVC', title: 'Service & generator report', detail: `${serviceJobs.length} service/generator job${serviceJobs.length === 1 ? '' : 's'} · ${serviceNotes.length} field note${serviceNotes.length === 1 ? '' : 's'}`, target: 'jobs' },
+    { mark: 'MAT', title: 'Material & stock report', detail: `${allStock.length} stock item${allStock.length === 1 ? '' : 's'} across ${stockLocations.length} location${stockLocations.length === 1 ? '' : 's'} · ${lowStock} need attention`, target: 'inventory' },
+    { mark: 'CREW', title: 'Crew activity report', detail: `${crews.length} crew${crews.length === 1 ? '' : 's'} · ${crewMembers} people · ${todaySchedule.length} today assignment${todaySchedule.length === 1 ? '' : 's'}`, target: 'teams' },
+    { mark: 'INSP', title: 'Inspection report', detail: `${inspectionsComplete} of ${inspections.length} commercial inspection item${inspections.length === 1 ? '' : 's'} completed`, target: 'jobs' },
+    { mark: 'TOOL', title: 'Tool accountability report', detail: `${checkedOutTools} checked out · ${Math.max(tools.length - checkedOutTools, 0)} available · ${tools.length} tool${tools.length === 1 ? '' : 's'} tracked`, target: 'tools' },
+    { mark: 'WK', title: 'Weekly operations summary', detail: `${jobs.length} active jobs · ${todaySchedule.length} scheduled today · ${lowStock} stock flag${lowStock === 1 ? '' : 's'}`, target: 'home' }
+  ];
+  list.innerHTML = reports.map(report => `<button class="report-card" data-target="${report.target}"><span class="report-mark">${report.mark}</span><span><b>${report.title}</b><small>${report.detail}</small></span><em>›</em></button>`).join('');
+  list.querySelectorAll('[data-target]').forEach(button => button.addEventListener('click', () => showView(button.dataset.target)));
 }
 function renderTools() {
   const list = document.querySelector('#tool-list');
