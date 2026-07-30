@@ -4,8 +4,10 @@ const supabaseUrl = 'https://plzonnnsgbasizvwmfit.supabase.co';
 const supabaseAnonKey = 'sb_publishable_YIuhjQvB3Xypa-AWk9shxw_MvPm3snC';
 const supabaseClient = window.supabase?.createClient(supabaseUrl, supabaseAnonKey);
 const showView = target => {
+  const parentTabs = { 'job-detail': 'jobs', 'crew-detail': 'teams', settings: 'more' };
+  const activeTab = parentTabs[target] || target;
   views.forEach(view => view.classList.toggle('active', view.id === `${target}-view`));
-  navItems.forEach(item => item.classList.toggle('active', item.dataset.target === target));
+  navItems.forEach(item => item.classList.toggle('active', item.dataset.target === activeTab));
   document.querySelector('#add-button').hidden = target === 'job-detail';
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
