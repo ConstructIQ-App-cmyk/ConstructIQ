@@ -9,6 +9,7 @@ let companyInfo = null;
 let companyChannel = null;
 let normalizedReloadTimer = null;
 let normalizedSyncQueue = Promise.resolve();
+let inventoryTransactions = [];
 const usesNormalizedStorage = () => companyInfo?.storage_mode === 'normalized';
 const companyCacheKey = key => activeCompanyId ? `${key}:${activeCompanyId}` : key;
 const storageKey = key => usesNormalizedStorage() ? companyCacheKey(key) : key;
@@ -157,7 +158,7 @@ function clearVisibleCompanyData() {
   companyInfo = null;
   if (companyChannel && supabaseClient) supabaseClient.removeChannel(companyChannel);
   companyChannel = null;
-  jobs = []; crews = []; tools = []; stockLocations = []; materialCatalog = []; todaySchedule = []; serviceNotes = []; timeOffMessages = [];
+  jobs = []; crews = []; tools = []; stockLocations = []; materialCatalog = []; todaySchedule = []; serviceNotes = []; timeOffMessages = []; inventoryTransactions = [];
   localStorage.removeItem('current-active-company-id');
   updateCompanyUI();
   render();
@@ -337,11 +338,12 @@ async function loadNormalizedState() {
     supabaseClient.from('material_catalog').select('*').eq('company_id', activeCompanyId),
     supabaseClient.from('schedule_assignments').select('*').eq('company_id', activeCompanyId).eq('assignment_date', today),
     supabaseClient.from('service_notes').select('*').eq('company_id', activeCompanyId),
-    supabaseClient.from('time_off_messages').select('*').eq('company_id', activeCompanyId).order('created_at', { ascending: false })
+    supabaseClient.from('time_off_messages').select('*').eq('company_id', activeCompanyId).order('created_at', { ascending: false }),
+    supabaseClient.from('inventory_transactions').select('*').eq('company_id', activeCompanyId).order('created_at', { ascending: false }).limit(200)
   ]);
   const failed = results.find(result => result.error);
   if (failed) { showToast(`Could not load company data: ${failed.error.message}`); return; }
-  const [jobRows, inspectionRows, crewRows, memberRows, toolRows, locationRows, stockRows, catalogRows, scheduleRows, noteRows, timeOffRows] = results.map(result => result.data || []);
+  const [jobRows, inspectionRows, crewRows, memberRows, toolRows, locationRows, stockRows, catalogRows, scheduleRows, noteRows, timeOffRows, transactionRows] = results.map(result => result.data || []);
   jobs = jobRows.map(job => ({
     id: job.id, name: job.name, type: job.job_type, location: job.location || '', due: job.due_date || '', status: job.status,
     inspections: inspectionRows.filter(item => item.job_id === job.id).map(item => ({ id: item.id, name: item.name, completed: item.completed }))
@@ -366,6 +368,7 @@ async function loadNormalizedState() {
     return { id: note.id, jobId: note.job_id, jobName: job?.name || 'Job', jobType: job?.type || '', note: note.note, materials: note.materials_needed || '' };
   });
   timeOffMessages = timeOffRows.map(message => ({ id: message.id, authorId: message.author_id, authorName: message.author_name, text: message.message, createdAt: message.created_at, editedAt: message.edited_at }));
+  inventoryTransactions = transactionRows;
   localStorage.setItem(companyCacheKey(jobKey), JSON.stringify(jobs));
   localStorage.setItem(companyCacheKey(crewKey), JSON.stringify(crews));
   localStorage.setItem(companyCacheKey(toolKey), JSON.stringify(tools));
@@ -375,6 +378,11 @@ async function loadNormalizedState() {
   localStorage.setItem(companyCacheKey(serviceNotesKey), JSON.stringify(serviceNotes));
   localStorage.setItem(companyCacheKey(timeOffKey), JSON.stringify(timeOffMessages));
   render();
+  const openLocation = stockLocations.find(location => location.id === selectedStockLocationId);
+  if (openLocation && document.querySelector('#stock-detail-view')?.classList.contains('active')) {
+    renderStockItems(openLocation);
+    renderInventoryHistory(openLocation);
+  }
 }
 function updateCompanyUI() {
   document.querySelector('#company-join-code').textContent = companyInfo?.join_code || 'Not connected';
@@ -387,7 +395,7 @@ function subscribeToCompanyState() {
   if (!supabaseClient || !activeCompanyId) return;
   if (companyChannel) supabaseClient.removeChannel(companyChannel);
   if (usesNormalizedStorage()) {
-    const tables = ['jobs', 'inspection_items', 'crews', 'crew_members', 'tools', 'stock_locations', 'stock_items', 'material_catalog', 'schedule_assignments', 'service_notes', 'time_off_messages'];
+    const tables = ['jobs', 'inspection_items', 'crews', 'crew_members', 'tools', 'stock_locations', 'stock_items', 'material_catalog', 'schedule_assignments', 'service_notes', 'time_off_messages', 'inventory_transactions'];
     companyChannel = supabaseClient.channel(`company-tables-${activeCompanyId}`);
     tables.forEach(table => companyChannel.on('postgres_changes', {
       event: '*', schema: 'public', table, filter: `company_id=eq.${activeCompanyId}`
@@ -549,7 +557,7 @@ function renderReports() {
 function renderTools() {
   const list = document.querySelector('#tool-list');
   if (!list) return;
-  list.innerHTML = tools.length ? tools.map(tool => `<article class="tool-record"><span class="tool-mark">T</span><div><h3>${escapeHtml(tool.name)}</h3><p>${escapeHtml(tool.toolId || 'No tool ID')} · ${tool.checkedOutTo ? `Out to ${escapeHtml(tool.checkedOutTo)}` : 'Available'}</p></div><button data-tool-action="${tool.checkedOutTo ? 'checkin' : 'checkout'}" data-tool-id="${tool.id}" class="${tool.checkedOutTo ? 'checkin-tool' : 'checkout-tool'}">${tool.checkedOutTo ? 'CHECK IN' : 'CHECK OUT'}</button></article>`).join('') : '<p class="empty-state">No tools added yet. Add equipment to begin tracking check in/out.</p>';
+  list.innerHTML = tools.length ? tools.map(tool => `<article class="tool-record"><span class="tool-mark">T</span><div><h3>${escapeHtml(tool.name)}</h3><p>${tool.checkedOutTo ? `Borrowed by ${escapeHtml(tool.checkedOutTo)}` : 'Returned'} · From ${escapeHtml(tool.toolId || 'Not specified')}</p></div>${tool.checkedOutTo ? `<button data-tool-action="checkin" data-tool-id="${tool.id}" class="checkin-tool">CHECK IN</button>` : ''}</article>`).join('') : '<p class="empty-state">No borrowed tools recorded yet.</p>';
 }
 function renderStockLocations() {
   const list = document.querySelector('#stock-location-list');
@@ -594,11 +602,33 @@ function openStockLocation(location) {
   selectedRestockStockItemId = null;
   document.querySelector('#stock-item-form').reset();
   renderStockItems(location);
+  renderInventoryHistory(location);
   showView('stock-detail');
 }
 function renderStockItems(location) {
   const list = document.querySelector('#stock-item-list');
   list.innerHTML = location.items.length ? location.items.map(item => { const low = Number(item.quantity) <= Number(item.minimum || 0); return `<article class="stock-item-record ${low ? 'low-stock-item' : ''}"><div><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.quantity)} ${escapeHtml(item.unit)} · Minimum: ${escapeHtml(item.minimum ?? 0)}${low ? ' · Needs attention' : ''}</small></div><div class="stock-item-actions"><button class="restock-stock-item" data-restock-stock-item="${item.id}">ADD</button><button class="use-stock-item" data-use-stock-item="${item.id}">USE</button><button class="remove-stock-item" data-remove-stock-item="${item.id}" aria-label="Remove ${escapeHtml(item.name)}">&times;</button></div></article>`; }).join('') : '<p class="empty-state">No material added to this location yet.</p>';
+}
+function renderInventoryHistory(location) {
+  const list = document.querySelector('#inventory-history-list');
+  if (!list || !location) return;
+  const itemsById = new Map((location.items || []).map(item => [item.id, item]));
+  const usage = inventoryTransactions.filter(transaction => {
+    const itemId = transaction.stock_item_id || transaction.stockItemId;
+    const type = String(transaction.transaction_type || transaction.action || transaction.type || '').toLowerCase();
+    const change = Number(transaction.quantity_change ?? transaction.change ?? 0);
+    return itemsById.has(itemId) && (type.includes('use') || type.includes('issue') || type.includes('subtract') || change < 0);
+  });
+  list.innerHTML = usage.length ? usage.map(transaction => {
+    const item = itemsById.get(transaction.stock_item_id || transaction.stockItemId);
+    const note = transaction.note || transaction.usage_note || '';
+    const notedName = String(note).match(/^Used by (.+)$/i)?.[1];
+    const actorId = transaction.performed_by || transaction.created_by || transaction.user_id;
+    const actor = transaction.actor_name || transaction.user_name || notedName || (actorId === currentUser?.id ? (profileFullName || profileName) : 'Team member');
+    const amount = Math.abs(Number(transaction.quantity ?? transaction.amount ?? transaction.quantity_change ?? transaction.change ?? 0));
+    const createdAt = transaction.created_at || transaction.occurred_at || new Date().toISOString();
+    return `<article class="inventory-history-record"><header><b>${escapeHtml(actor)}</b><time datetime="${escapeHtml(createdAt)}">${new Date(createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</time></header><p>Used ${escapeHtml(amount)} ${escapeHtml(item?.unit || transaction.unit || '')} of ${escapeHtml(item?.name || transaction.material_name || 'material')}</p></article>`;
+  }).join('') : '<p class="empty-state">No material usage has been recorded at this location yet.</p>';
 }
 function renderTodaySchedule() {
   if (!usesNormalizedStorage() && localStorage.getItem(scheduleDateKey) !== localCalendarDate()) {
@@ -714,9 +744,6 @@ document.querySelector('#show-member-form').addEventListener('click', () => {
   document.querySelector('#member-form').hidden = !document.querySelector('#member-form').hidden;
   document.querySelector('#team-form').hidden = true;
 });
-document.querySelector('#show-tool-form').addEventListener('click', () => {
-  document.querySelector('#tool-form').hidden = !document.querySelector('#tool-form').hidden;
-});
 document.querySelector('#show-stock-location-form').addEventListener('click', () => {
   document.querySelector('#stock-location-form').hidden = !document.querySelector('#stock-location-form').hidden;
 });
@@ -828,13 +855,14 @@ document.querySelector('#member-form').addEventListener('submit', event => {
 });
 document.querySelector('#tool-form').addEventListener('submit', event => {
   event.preventDefault();
+  const borrower = document.querySelector('#tool-borrower').value.trim();
   const name = document.querySelector('#tool-name').value.trim();
   const toolId = document.querySelector('#tool-id').value.trim();
-  if (!name) return;
-  tools.push({ id: newId(), name, toolId, checkedOutTo: '' });
+  if (!borrower || !name || !toolId) return;
+  tools.unshift({ id: newId(), name, toolId, checkedOutTo: borrower });
   event.currentTarget.reset();
-  event.currentTarget.hidden = true;
   saveTools();
+  showToast(`${name} checked out to ${borrower}`);
 });
 document.querySelector('#stock-location-form').addEventListener('submit', event => {
   event.preventDefault();
@@ -996,14 +1024,15 @@ document.querySelector('#location-use-form').addEventListener('submit', async ev
   const onHand = Number(item.quantity);
   if (used > onHand) { showToast(`Only ${item.quantity} ${item.unit} available`); return; }
   if (usesNormalizedStorage()) {
-    const { data, error } = await supabaseClient.rpc('use_stock_item', { target_stock_item_id: item.id, amount_used: used, target_job_id: null, usage_note: null });
+    const userName = profileFullName || profileName || currentUser?.user_metadata?.full_name || currentUser?.email || 'Team member';
+    const { data, error } = await supabaseClient.rpc('use_stock_item', { target_stock_item_id: item.id, amount_used: used, target_job_id: null, usage_note: `Used by ${userName}` });
     if (error) { showToast(error.message); return; }
     selectedStockItemId = null;
     event.currentTarget.reset();
     event.currentTarget.hidden = true;
     await loadNormalizedState();
     const refreshedLocation = stockLocations.find(record => record.id === location.id);
-    if (refreshedLocation) renderStockItems(refreshedLocation);
+    if (refreshedLocation) { renderStockItems(refreshedLocation); renderInventoryHistory(refreshedLocation); }
     showToast(data?.needs_attention ? `${item.name} in ${location.name} needs attention` : `${used} ${item.unit} of ${item.name} used`);
     return;
   }
@@ -1029,12 +1058,9 @@ document.querySelector('#tool-list').addEventListener('click', event => {
   if (!button) return;
   const tool = tools.find(item => item.id === button.dataset.toolId);
   if (!tool) return;
-  if (button.dataset.toolAction === 'checkout') {
-    const person = prompt(`Check out ${tool.name} to:`, '');
-    if (!person?.trim()) return;
-    tool.checkedOutTo = person.trim();
-  } else tool.checkedOutTo = '';
+  tool.checkedOutTo = '';
   saveTools();
+  showToast(`${tool.name} checked in`);
 });
 document.querySelector('#crew-member-form').addEventListener('submit', event => {
   event.preventDefault();
@@ -1212,7 +1238,8 @@ document.querySelector('#issue-form').addEventListener('submit', async event => 
   const onHand = Number(item.quantity);
   if (used > onHand) { showToast(`Only ${item.quantity} ${item.unit} available`); return; }
   if (usesNormalizedStorage()) {
-    const { data, error } = await supabaseClient.rpc('use_stock_item', { target_stock_item_id: item.id, amount_used: used, target_job_id: null, usage_note: null });
+    const userName = profileFullName || profileName || currentUser?.user_metadata?.full_name || currentUser?.email || 'Team member';
+    const { data, error } = await supabaseClient.rpc('use_stock_item', { target_stock_item_id: item.id, amount_used: used, target_job_id: null, usage_note: `Used by ${userName}` });
     if (error) { showToast(error.message); return; }
     event.currentTarget.reset();
     event.currentTarget.hidden = true;

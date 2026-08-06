@@ -47,6 +47,7 @@
     <style>
       .tools-section-heading{display:flex;align-items:end;justify-content:space-between;margin:25px 0 10px}.tools-section-heading h3{font-size:20px;color:#fff;margin:4px 0 0}.tools-section-heading button{border:1px solid #ffb338;background:#172731;color:#ffcc60;padding:8px 10px;font-size:10px;font-weight:900}.stock-location-list{display:grid;gap:8px}.stock-location-record{display:flex;align-items:center;gap:10px;background:#111f29;border:1px solid #30434e;padding:11px}.stock-location-record>span{width:34px;height:34px;display:grid;place-items:center;background:#263b45;color:#ffcc60;font-size:11px;font-weight:900}.stock-location-record b,.stock-location-record small{display:block}.stock-location-record b{color:#fff;font-size:13px}.stock-location-record small{color:#a3b3bb;font-size:10px;margin-top:3px}
       .stock-location-record{width:100%;text-align:left}.stock-location-record>div{flex:1}.stock-location-record em{color:#ffcc60;font-size:22px;font-style:normal}.location-edit-toggle{margin:-5px 0 14px}.delete-stock-location-button{width:100%;border:1px solid #85443f;background:#281717;color:#ff9d92;padding:10px;font-size:11px;font-weight:900;margin:-3px 0 23px}.stock-items-heading{border-left:3px solid #ff9e1b;padding-left:11px;margin:0 0 11px}.stock-items-heading h3{color:#fff;font-size:21px;margin:4px 0 0}.stock-item-inputs{display:grid;grid-template-columns:1fr 1fr;gap:8px}.stock-item-list{display:grid;gap:8px}.stock-item-record{display:flex;align-items:center;justify-content:space-between;gap:9px;background:#111f29;border:1px solid #30434e;padding:11px}.stock-item-record>div:first-child{flex:1;min-width:0}.stock-item-record b,.stock-item-record small{display:block}.stock-item-record b{color:#fff;font-size:13px}.stock-item-record small{color:#a3b3bb;font-size:11px;margin-top:3px}.stock-item-actions{display:flex;gap:5px;flex:none}.stock-item-record .use-stock-item,.stock-item-record .restock-stock-item{width:auto;height:27px;border:1px solid #d1ae71;background:#cfac6f;color:#211b11;padding:0 7px;font-size:8px;font-weight:900;line-height:25px}.stock-item-record .restock-stock-item{border-color:#527665;background:#233d32;color:#b9efd5}.stock-item-record .remove-stock-item{width:27px;height:27px;border:1px solid #74423e;background:#2b1a1a;color:#ff9d92;font-size:18px;line-height:18px}
+      .inventory-history{margin-top:25px}.inventory-history-list{display:grid;gap:8px}.inventory-history-record{border:1px solid #3e3b34;background:#191815;padding:11px}.inventory-history-record header{display:flex;justify-content:space-between;gap:10px}.inventory-history-record b{color:#f5f1e8;font-size:13px}.inventory-history-record time{color:#8f8b83;font-size:9px}.inventory-history-record p{margin:5px 0 0;color:#d6ba84;font-size:11px}
       .low-stock-item{border-color:#9b6231!important;background:#2b2118!important}.low-stock-item small{color:#ffca72!important}
     </style>
     <style>
@@ -207,6 +208,7 @@
         <form class="management-form" id="location-restock-form" hidden><h3>Add to existing stock</h3><input id="location-restock-name" readonly /><input id="location-restock-quantity" type="number" min="0.01" step="any" placeholder="Quantity to add" required /><div class="form-actions"><button class="primary-action" type="submit">Add to stock</button><button class="cancel-action" data-cancel-form="location-restock-form" type="button">Cancel</button></div></form>
         <form class="management-form" id="stock-item-form"><h3>Add stock item</h3><input id="stock-item-name" maxlength="60" placeholder="Material name" required /><div class="stock-item-inputs"><input id="stock-item-quantity" type="number" min="0" step="any" placeholder="Quantity" required /><input id="stock-item-unit" maxlength="15" placeholder="Unit (e.g. ft)" required /></div><input id="stock-item-minimum" type="number" min="0" step="any" placeholder="Low-stock threshold" required /><div class="form-actions"><button class="primary-action" type="submit">Add stock</button><button class="cancel-action" data-cancel-form="stock-item-form" data-cancel-mode="reset" type="button">Cancel</button></div></form>
         <div id="stock-item-list" class="stock-item-list"></div>
+        <section class="inventory-history"><div class="stock-items-heading"><p class="eyebrow">ACTIVITY</p><h3>Material usage history</h3></div><div id="inventory-history-list" class="inventory-history-list"></div></section>
       </section>
 
       <section id="more-view" class="view">
@@ -225,8 +227,8 @@
       <section id="tools-view" class="view">
         <button class="back-button" data-target="more">&lsaquo; More</button>
         <div class="page-heading"><p class="eyebrow">EQUIPMENT CONTROL</p><h2>Tool check in/out</h2></div>
-        <button class="primary-action wide-action" id="show-tool-form">+ Add tool</button>
-        <form class="management-form" id="tool-form" hidden><h3>Add tool</h3><input id="tool-name" maxlength="50" placeholder="Tool name" required /><input id="tool-id" maxlength="40" placeholder="Tool ID or serial number" /><div class="form-actions"><button class="primary-action" type="submit">Add tool</button><button class="cancel-action" data-cancel-form="tool-form" type="button">Cancel</button></div></form>
+        <form class="management-form" id="tool-form"><h3>Record a borrowed tool</h3><input id="tool-borrower" maxlength="50" placeholder="Your name" required /><input id="tool-name" maxlength="50" placeholder="Tool borrowed" required /><input id="tool-id" maxlength="60" placeholder="Whose tool or where it came from" required /><div class="form-actions"><button class="primary-action" type="submit">Check out tool</button><button class="cancel-action" data-cancel-form="tool-form" data-cancel-mode="reset" type="button">Clear</button></div></form>
+        <p class="list-label">BORROWED TOOL LOG</p>
         <div id="tool-list" class="tool-register"></div>
       </section>
 
@@ -299,9 +301,9 @@
       <form id="profile-form" class="profile-card"><p class="eyebrow">WELCOME TO CONSTRUCTIQ</p><h2>Who is using this device?</h2><p>Your name appears only on this device's app.</p><input id="profile-input" maxlength="50" placeholder="First and last name" required autofocus /><button type="submit">Save my name</button></form>
     </div>
     <div class="toast" id="toast">Material issue started</div>
-    <script src="app.js?v=55"></script>
+    <script src="app.js?v=57"></script>
     <script>
-      if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=57');
+      if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=59');
     </script>
   </body>
 </html>
