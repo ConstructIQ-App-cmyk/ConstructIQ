@@ -7,8 +7,14 @@ let currentUser = null;
 let activeCompanyId = localStorage.getItem('current-active-company-id') || null;
 let companyInfo = null;
 let companyChannel = null;
+let normalizedReloadTimer = null;
+let normalizedSyncQueue = Promise.resolve();
+const usesNormalizedStorage = () => companyInfo?.storage_mode === 'normalized';
+const companyCacheKey = key => activeCompanyId ? `${key}:${activeCompanyId}` : key;
+const storageKey = key => usesNormalizedStorage() ? companyCacheKey(key) : key;
+const newId = () => crypto.randomUUID();
 const showView = target => {
-  const parentTabs = { 'job-detail': 'jobs', 'crew-detail': 'teams', 'stock-detail': 'inventory', settings: 'more', reports: 'more' };
+  const parentTabs = { 'job-detail': 'jobs', 'crew-detail': 'teams', 'stock-detail': 'inventory', 'time-off': 'home', settings: 'more', reports: 'more' };
   const activeTab = parentTabs[target] || target;
   views.forEach(view => view.classList.toggle('active', view.id === `${target}-view`));
   navItems.forEach(item => item.classList.toggle('active', item.dataset.target === activeTab));
@@ -26,6 +32,7 @@ const materialCatalogKey = 'current-material-catalog-v1';
 const scheduleKey = 'current-today-schedule-v1';
 const scheduleDateKey = 'current-today-schedule-date-v1';
 const serviceNotesKey = 'current-service-notes-v1';
+const timeOffKey = 'current-time-off-messages-v1';
 const profileKey = 'current-profile-name';
 const profileFullNameKey = 'current-profile-full-name';
 const hadExistingInstall = localStorage.getItem(dataVersion) === 'ready';
@@ -56,8 +63,12 @@ if (localStorage.getItem(scheduleDateKey) !== localCalendarDate()) {
 }
 let todaySchedule = JSON.parse(localStorage.getItem(scheduleKey) || '[]');
 let serviceNotes = JSON.parse(localStorage.getItem(serviceNotesKey) || '[]');
+let timeOffMessages = JSON.parse(localStorage.getItem(timeOffKey) || '[]');
+let editingTimeOffMessageId = null;
 let selectedStockLocationId = null;
+let selectedStockItemId = null;
 let selectedCatalogMaterialId = null;
+let editingCatalogMaterialId = null;
 let selectedCrewIndex = null;
 let editingJobId = null;
 let selectedJobId = null;
@@ -131,12 +142,26 @@ function applySignedInUser(user) {
   authModal.hidden = true;
   document.querySelector('#profile-modal').hidden = true;
 }
+function clearVisibleCompanyData() {
+  currentUser = null;
+  activeCompanyId = null;
+  companyInfo = null;
+  if (companyChannel && supabaseClient) supabaseClient.removeChannel(companyChannel);
+  companyChannel = null;
+  jobs = []; crews = []; tools = []; stockLocations = []; materialCatalog = []; todaySchedule = []; serviceNotes = []; timeOffMessages = [];
+  localStorage.removeItem('current-active-company-id');
+  updateCompanyUI();
+  render();
+}
 async function initializeAuth() {
   if (!supabaseClient) { showAuthMessage('Sign-in service could not load. Check your connection.', true); authModal.hidden = false; return; }
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (session) { applySignedInUser(session.user); await initializeCompanyWorkspace(session.user); }
   else authModal.hidden = false;
-  supabaseClient.auth.onAuthStateChange((_event, session) => { if (session) { applySignedInUser(session.user); initializeCompanyWorkspace(session.user); } });
+  supabaseClient.auth.onAuthStateChange((_event, session) => {
+    if (session) { applySignedInUser(session.user); initializeCompanyWorkspace(session.user); }
+    else { clearVisibleCompanyData(); authModal.hidden = false; }
+  });
 }
 document.querySelector('#auth-toggle').addEventListener('click', () => { isSignUp = !isSignUp; renderAuthMode(); });
 document.querySelector('#auth-form').addEventListener('submit', async event => {
@@ -158,41 +183,47 @@ document.querySelector('#auth-form').addEventListener('submit', async event => {
 const escapeHtml = value => String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
 
 function saveData() {
-  localStorage.setItem(crewKey, JSON.stringify(crews));
-  localStorage.setItem(jobKey, JSON.stringify(jobs));
+  localStorage.setItem(storageKey(crewKey), JSON.stringify(crews));
+  localStorage.setItem(storageKey(jobKey), JSON.stringify(jobs));
   render();
   syncSharedState();
 }
 function saveTools() {
-  localStorage.setItem(toolKey, JSON.stringify(tools));
+  localStorage.setItem(storageKey(toolKey), JSON.stringify(tools));
   renderTools();
   syncSharedState();
 }
 function saveStockLocations() {
-  localStorage.setItem(stockLocationKey, JSON.stringify(stockLocations));
+  localStorage.setItem(storageKey(stockLocationKey), JSON.stringify(stockLocations));
   renderStockLocations();
   syncSharedState();
 }
 function saveMaterialCatalog() {
-  localStorage.setItem(materialCatalogKey, JSON.stringify(materialCatalog));
+  localStorage.setItem(storageKey(materialCatalogKey), JSON.stringify(materialCatalog));
   renderMaterialCatalog();
   syncSharedState();
 }
 function saveTodaySchedule() {
-  localStorage.setItem(scheduleDateKey, localCalendarDate());
-  localStorage.setItem(scheduleKey, JSON.stringify(todaySchedule));
+  localStorage.setItem(storageKey(scheduleDateKey), localCalendarDate());
+  localStorage.setItem(storageKey(scheduleKey), JSON.stringify(todaySchedule));
   renderTodaySchedule();
   syncSharedState();
 }
 function saveServiceNotes() {
-  localStorage.setItem(serviceNotesKey, JSON.stringify(serviceNotes));
+  localStorage.setItem(storageKey(serviceNotesKey), JSON.stringify(serviceNotes));
   renderServiceNotes();
   syncSharedState();
 }
-function sharedPayload() {
-  return { jobs, crews, tools, stockLocations, materialCatalog, todaySchedule, scheduleDate: localStorage.getItem(scheduleDateKey), serviceNotes };
+function saveTimeOffMessages() {
+  localStorage.setItem(storageKey(timeOffKey), JSON.stringify(timeOffMessages));
+  renderTimeOffMessages();
+  syncSharedState();
 }
-function cacheSharedPayload(payload) {
+function sharedPayload() {
+  return { jobs, crews, tools, stockLocations, materialCatalog, todaySchedule, scheduleDate: localStorage.getItem(scheduleDateKey), serviceNotes, timeOffMessages };
+}
+function cacheSharedPayload(payload, notifyNewTimeOff = false) {
+  const previousTimeOffIds = new Set(timeOffMessages.map(message => message.id));
   jobs = Array.isArray(payload.jobs) ? payload.jobs : [];
   crews = Array.isArray(payload.crews) ? payload.crews : [];
   tools = Array.isArray(payload.tools) ? payload.tools : [];
@@ -200,6 +231,7 @@ function cacheSharedPayload(payload) {
   materialCatalog = Array.isArray(payload.materialCatalog) ? payload.materialCatalog : [];
   todaySchedule = Array.isArray(payload.todaySchedule) ? payload.todaySchedule : [];
   serviceNotes = Array.isArray(payload.serviceNotes) ? payload.serviceNotes : [];
+  timeOffMessages = Array.isArray(payload.timeOffMessages) ? payload.timeOffMessages : [];
   localStorage.setItem(jobKey, JSON.stringify(jobs));
   localStorage.setItem(crewKey, JSON.stringify(crews));
   localStorage.setItem(toolKey, JSON.stringify(tools));
@@ -208,9 +240,19 @@ function cacheSharedPayload(payload) {
   localStorage.setItem(scheduleKey, JSON.stringify(todaySchedule));
   localStorage.setItem(scheduleDateKey, payload.scheduleDate || localCalendarDate());
   localStorage.setItem(serviceNotesKey, JSON.stringify(serviceNotes));
+  localStorage.setItem(timeOffKey, JSON.stringify(timeOffMessages));
   render();
+  const newRequest = notifyNewTimeOff ? timeOffMessages.find(message => !previousTimeOffIds.has(message.id) && message.authorId !== currentUser?.id) : null;
+  if (newRequest) {
+    showToast(`${newRequest.authorName} posted a time-off request`);
+    if ('Notification' in window && Notification.permission === 'granted') new Notification('New time-off request', { body: `${newRequest.authorName}: ${newRequest.text}` });
+  }
 }
 async function syncSharedState() {
+  if (usesNormalizedStorage()) {
+    normalizedSyncQueue = normalizedSyncQueue.then(syncNormalizedState).catch(error => showToast(`Sync issue: ${error.message}`));
+    return normalizedSyncQueue;
+  }
   if (!supabaseClient || !activeCompanyId || !currentUser) return;
   const { error } = await supabaseClient.from('company_app_state').upsert({
     company_id: activeCompanyId,
@@ -220,11 +262,110 @@ async function syncSharedState() {
   }, { onConflict: 'company_id' });
   if (error) showToast(`Sync issue: ${error.message}`);
 }
+async function syncNormalizedTable(table, rows, scope = {}) {
+  if (rows.length) {
+    const { error } = await supabaseClient.from(table).upsert(rows, { onConflict: 'id' });
+    if (error) throw error;
+  }
+  let selectQuery = supabaseClient.from(table).select('id').eq('company_id', activeCompanyId);
+  Object.entries(scope).forEach(([column, value]) => { selectQuery = selectQuery.eq(column, value); });
+  const { data: existing, error: selectError } = await selectQuery;
+  if (selectError) throw selectError;
+  const keep = new Set(rows.map(row => row.id));
+  for (const record of existing || []) {
+    if (!keep.has(record.id)) {
+      let deleteQuery = supabaseClient.from(table).delete().eq('id', record.id).eq('company_id', activeCompanyId);
+      Object.entries(scope).forEach(([column, value]) => { deleteQuery = deleteQuery.eq(column, value); });
+      const { error } = await deleteQuery;
+      if (error) throw error;
+    }
+  }
+}
+async function syncNormalizedState() {
+  if (!supabaseClient || !activeCompanyId || !currentUser || !usesNormalizedStorage()) return;
+  const now = new Date().toISOString();
+  const jobRows = jobs.map(job => ({ id: job.id, company_id: activeCompanyId, name: job.name, job_type: job.type, location: job.location || '', due_date: job.due || null, status: job.status || 'active', updated_by: currentUser.id, updated_at: now }));
+  const inspectionRows = jobs.flatMap(job => (job.inspections || []).map((item, index) => ({ id: item.id, company_id: activeCompanyId, job_id: job.id, name: item.name, completed: Boolean(item.completed), sort_order: index })));
+  const crewRows = crews.map(crew => ({ id: crew.id, company_id: activeCompanyId, name: crew.name, job_id: crew.jobId || null, color: crew.color || null, updated_by: currentUser.id, updated_at: now }));
+  const memberRows = crews.flatMap(crew => crew.members.map(member => ({ id: member.id, company_id: activeCompanyId, crew_id: crew.id, name: member.name, role: member.role, user_id: member.userId || null, updated_at: now })));
+  const toolRows = tools.map(tool => ({ id: tool.id, company_id: activeCompanyId, name: tool.name, tool_identifier: tool.toolId || null, checked_out_to: tool.checkedOutTo || null, updated_at: now }));
+  const catalogRows = materialCatalog.map(material => ({ id: material.id, company_id: activeCompanyId, name: material.name, default_unit: material.unit, updated_by: currentUser.id, updated_at: now }));
+  const locationRows = stockLocations.map(location => ({ id: location.id, company_id: activeCompanyId, name: location.name, updated_by: currentUser.id, updated_at: now }));
+  const stockRows = stockLocations.flatMap(location => location.items.map(item => ({ id: item.id, company_id: activeCompanyId, stock_location_id: location.id, material_id: item.materialId || materialCatalog.find(material => material.name.toLowerCase() === item.name.toLowerCase())?.id || null, name: item.name, quantity: Number(item.quantity), unit: item.unit, low_stock_threshold: Number(item.minimum || 0), updated_by: currentUser.id, updated_at: now })));
+  const scheduleRows = todaySchedule.map(assignment => ({ id: assignment.id, company_id: activeCompanyId, assignment_date: localCalendarDate(), assignment_type: assignment.crewId ? 'crew' : 'person', crew_id: assignment.crewId || null, person_name: assignment.crewId ? null : assignment.person, job_id: assignment.jobId || jobs.find(job => job.name === assignment.jobName)?.id || null, location: assignment.location || null, created_by: currentUser.id, updated_at: now }));
+  const noteRows = serviceNotes.map(note => ({ id: note.id, company_id: activeCompanyId, job_id: note.jobId, note: note.note, materials_needed: note.materials || null, created_by: currentUser.id, updated_at: now }));
+  const timeOffRows = timeOffMessages.filter(message => (message.authorId || currentUser.id) === currentUser.id).map(message => ({ id: message.id, company_id: activeCompanyId, author_id: currentUser.id, author_name: message.authorName, message: message.text, created_at: message.createdAt || now, edited_at: message.editedAt || null }));
+  await syncNormalizedTable('jobs', jobRows);
+  await syncNormalizedTable('crews', crewRows);
+  await syncNormalizedTable('material_catalog', catalogRows);
+  await syncNormalizedTable('stock_locations', locationRows);
+  await syncNormalizedTable('inspection_items', inspectionRows);
+  await syncNormalizedTable('crew_members', memberRows);
+  await syncNormalizedTable('tools', toolRows);
+  await syncNormalizedTable('stock_items', stockRows);
+  await syncNormalizedTable('schedule_assignments', scheduleRows);
+  await syncNormalizedTable('service_notes', noteRows);
+  await syncNormalizedTable('time_off_messages', timeOffRows, { author_id: currentUser.id });
+}
 async function loadSharedState() {
+  if (usesNormalizedStorage()) { await loadNormalizedState(); return; }
   const { data, error } = await supabaseClient.from('company_app_state').select('data').eq('company_id', activeCompanyId).maybeSingle();
   if (error) { showToast(`Could not load company data: ${error.message}`); return; }
   if (data?.data && Object.keys(data.data).length) cacheSharedPayload(data.data);
   else await syncSharedState();
+}
+async function loadNormalizedState() {
+  if (!supabaseClient || !activeCompanyId) return;
+  const today = localCalendarDate();
+  const results = await Promise.all([
+    supabaseClient.from('jobs').select('*').eq('company_id', activeCompanyId),
+    supabaseClient.from('inspection_items').select('*').eq('company_id', activeCompanyId).order('sort_order'),
+    supabaseClient.from('crews').select('*').eq('company_id', activeCompanyId),
+    supabaseClient.from('crew_members').select('*').eq('company_id', activeCompanyId),
+    supabaseClient.from('tools').select('*').eq('company_id', activeCompanyId),
+    supabaseClient.from('stock_locations').select('*').eq('company_id', activeCompanyId),
+    supabaseClient.from('stock_items').select('*').eq('company_id', activeCompanyId),
+    supabaseClient.from('material_catalog').select('*').eq('company_id', activeCompanyId),
+    supabaseClient.from('schedule_assignments').select('*').eq('company_id', activeCompanyId).eq('assignment_date', today),
+    supabaseClient.from('service_notes').select('*').eq('company_id', activeCompanyId),
+    supabaseClient.from('time_off_messages').select('*').eq('company_id', activeCompanyId).order('created_at', { ascending: false })
+  ]);
+  const failed = results.find(result => result.error);
+  if (failed) { showToast(`Could not load company data: ${failed.error.message}`); return; }
+  const [jobRows, inspectionRows, crewRows, memberRows, toolRows, locationRows, stockRows, catalogRows, scheduleRows, noteRows, timeOffRows] = results.map(result => result.data || []);
+  jobs = jobRows.map(job => ({
+    id: job.id, name: job.name, type: job.job_type, location: job.location || '', due: job.due_date || '', status: job.status,
+    inspections: inspectionRows.filter(item => item.job_id === job.id).map(item => ({ id: item.id, name: item.name, completed: item.completed }))
+  }));
+  crews = crewRows.map(crew => {
+    const job = jobs.find(item => item.id === crew.job_id);
+    return { id: crew.id, name: crew.name, color: crew.color || 'orange', jobId: crew.job_id || '', jobName: job?.name || '', members: memberRows.filter(member => member.crew_id === crew.id).map(member => ({ id: member.id, name: member.name, role: member.role })) };
+  });
+  tools = toolRows.map(tool => ({ id: tool.id, name: tool.name, toolId: tool.tool_identifier || '', checkedOutTo: tool.checked_out_to || '' }));
+  materialCatalog = catalogRows.map(material => ({ id: material.id, name: material.name, unit: material.default_unit }));
+  stockLocations = locationRows.map(location => ({
+    id: location.id, name: location.name,
+    items: stockRows.filter(item => item.stock_location_id === location.id).map(item => ({ id: item.id, materialId: item.material_id, name: item.name, quantity: String(item.quantity), unit: item.unit, minimum: String(item.low_stock_threshold) }))
+  }));
+  todaySchedule = scheduleRows.map(assignment => {
+    const crew = crews.find(item => item.id === assignment.crew_id);
+    const job = jobs.find(item => item.id === assignment.job_id);
+    return { id: assignment.id, crewId: assignment.crew_id, person: crew?.name || assignment.person_name || 'Team member', location: assignment.location || 'Location not added', jobId: assignment.job_id, jobName: job?.name || '' };
+  });
+  serviceNotes = noteRows.map(note => {
+    const job = jobs.find(item => item.id === note.job_id);
+    return { id: note.id, jobId: note.job_id, jobName: job?.name || 'Job', jobType: job?.type || '', note: note.note, materials: note.materials_needed || '' };
+  });
+  timeOffMessages = timeOffRows.map(message => ({ id: message.id, authorId: message.author_id, authorName: message.author_name, text: message.message, createdAt: message.created_at, editedAt: message.edited_at }));
+  localStorage.setItem(companyCacheKey(jobKey), JSON.stringify(jobs));
+  localStorage.setItem(companyCacheKey(crewKey), JSON.stringify(crews));
+  localStorage.setItem(companyCacheKey(toolKey), JSON.stringify(tools));
+  localStorage.setItem(companyCacheKey(stockLocationKey), JSON.stringify(stockLocations));
+  localStorage.setItem(companyCacheKey(materialCatalogKey), JSON.stringify(materialCatalog));
+  localStorage.setItem(companyCacheKey(scheduleKey), JSON.stringify(todaySchedule));
+  localStorage.setItem(companyCacheKey(serviceNotesKey), JSON.stringify(serviceNotes));
+  localStorage.setItem(companyCacheKey(timeOffKey), JSON.stringify(timeOffMessages));
+  render();
 }
 function updateCompanyUI() {
   document.querySelector('#company-join-code').textContent = companyInfo?.join_code || 'Not connected';
@@ -236,16 +377,32 @@ function updateCompanyUI() {
 function subscribeToCompanyState() {
   if (!supabaseClient || !activeCompanyId) return;
   if (companyChannel) supabaseClient.removeChannel(companyChannel);
+  if (usesNormalizedStorage()) {
+    const tables = ['jobs', 'inspection_items', 'crews', 'crew_members', 'tools', 'stock_locations', 'stock_items', 'material_catalog', 'schedule_assignments', 'service_notes', 'time_off_messages'];
+    companyChannel = supabaseClient.channel(`company-tables-${activeCompanyId}`);
+    tables.forEach(table => companyChannel.on('postgres_changes', {
+      event: '*', schema: 'public', table, filter: `company_id=eq.${activeCompanyId}`
+    }, payload => {
+      if (table === 'time_off_messages' && payload.eventType === 'INSERT' && payload.new.author_id !== currentUser?.id) {
+        showToast(`${payload.new.author_name} posted a time-off request`);
+        if ('Notification' in window && Notification.permission === 'granted') new Notification('New time-off request', { body: `${payload.new.author_name}: ${payload.new.message}` });
+      }
+      clearTimeout(normalizedReloadTimer);
+      normalizedReloadTimer = setTimeout(loadNormalizedState, 180);
+    }));
+    companyChannel.subscribe();
+    return;
+  }
   companyChannel = supabaseClient.channel(`company-state-${activeCompanyId}`).on('postgres_changes', {
     event: 'UPDATE', schema: 'public', table: 'company_app_state', filter: `company_id=eq.${activeCompanyId}`
   }, payload => {
     if (payload.new.updated_by === currentUser?.id) return;
-    cacheSharedPayload(payload.new.data || {});
+    cacheSharedPayload(payload.new.data || {}, true);
     showToast('Company data updated');
   }).subscribe();
 }
 async function connectCompany(companyId) {
-  const { data, error } = await supabaseClient.from('companies').select('id,name,join_code').eq('id', companyId).single();
+  const { data, error } = await supabaseClient.from('companies').select('id,name,join_code,storage_mode').eq('id', companyId).single();
   if (error) { showWorkspaceMessage(error.message, true); return; }
   activeCompanyId = companyId;
   companyInfo = data;
@@ -342,7 +499,16 @@ function render() {
   renderTodaySchedule();
   renderServiceNotes();
   renderReports();
+  renderTimeOffMessages();
   document.querySelector('#home-member-count').textContent = String(crews.reduce((sum, crew) => sum + crew.members.length, 0)).padStart(2, '0');
+}
+function renderTimeOffMessages() {
+  const list = document.querySelector('#time-off-messages');
+  const summary = document.querySelector('#time-off-widget-summary');
+  if (!list || !summary) return;
+  const sorted = [...timeOffMessages].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  summary.textContent = sorted.length ? `${sorted.length} request${sorted.length === 1 ? '' : 's'} · Latest from ${sorted[0].authorName}` : 'No requests posted yet';
+  list.innerHTML = sorted.length ? sorted.map(message => { const canManage = message.authorId ? message.authorId === currentUser?.id : message.authorName === (profileFullName || profileName); return `<article class="time-off-message"><header><strong>${escapeHtml(message.authorName)}</strong><time datetime="${escapeHtml(message.createdAt)}">${new Date(message.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}${message.editedAt ? ' · edited' : ''}</time></header><p>${escapeHtml(message.text)}</p>${canManage ? `<div class="time-off-message-actions"><button data-edit-time-off="${message.id}">EDIT</button><button class="delete-time-off" data-delete-time-off="${message.id}">DELETE</button></div>` : ''}</article>`; }).join('') : '<p class="empty-state">No time-off requests have been posted.</p>';
 }
 function renderReports() {
   const overview = document.querySelector('#report-overview');
@@ -413,16 +579,18 @@ function openStockLocation(location) {
   document.querySelector('#stock-detail-name').textContent = location.name;
   document.querySelector('#stock-edit-name').value = location.name;
   document.querySelector('#stock-edit-form').hidden = true;
+  document.querySelector('#location-use-form').hidden = true;
+  selectedStockItemId = null;
   document.querySelector('#stock-item-form').reset();
   renderStockItems(location);
   showView('stock-detail');
 }
 function renderStockItems(location) {
   const list = document.querySelector('#stock-item-list');
-  list.innerHTML = location.items.length ? location.items.map(item => { const low = Number(item.quantity) <= Number(item.minimum || 0); return `<article class="stock-item-record ${low ? 'low-stock-item' : ''}"><div><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.quantity)} ${escapeHtml(item.unit)} · Minimum: ${escapeHtml(item.minimum ?? 0)}${low ? ' · Needs attention' : ''}</small></div><button data-remove-stock-item="${item.id}" aria-label="Remove ${escapeHtml(item.name)}">&times;</button></article>`; }).join('') : '<p class="empty-state">No material added to this location yet.</p>';
+  list.innerHTML = location.items.length ? location.items.map(item => { const low = Number(item.quantity) <= Number(item.minimum || 0); return `<article class="stock-item-record ${low ? 'low-stock-item' : ''}"><div><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.quantity)} ${escapeHtml(item.unit)} · Minimum: ${escapeHtml(item.minimum ?? 0)}${low ? ' · Needs attention' : ''}</small></div><div class="stock-item-actions"><button class="use-stock-item" data-use-stock-item="${item.id}">USE</button><button class="remove-stock-item" data-remove-stock-item="${item.id}" aria-label="Remove ${escapeHtml(item.name)}">&times;</button></div></article>`; }).join('') : '<p class="empty-state">No material added to this location yet.</p>';
 }
 function renderTodaySchedule() {
-  if (localStorage.getItem(scheduleDateKey) !== localCalendarDate()) {
+  if (!usesNormalizedStorage() && localStorage.getItem(scheduleDateKey) !== localCalendarDate()) {
     todaySchedule = [];
     localStorage.setItem(scheduleDateKey, localCalendarDate());
     localStorage.removeItem(scheduleKey);
@@ -449,7 +617,17 @@ function renderMaterialCatalog(searchTerm = document.querySelector('#catalog-sea
   if (!list) return;
   const term = searchTerm.toLowerCase().trim();
   const matches = materialCatalog.filter(material => material.name.toLowerCase().includes(term));
-  list.innerHTML = matches.length ? matches.map(material => `<article class="catalog-record"><div><b>${escapeHtml(material.name)}</b><small>Default unit: ${escapeHtml(material.unit)}</small></div><button data-add-catalog-material="${material.id}">ADD TO STOCK</button></article>`).join('') : `<p class="empty-state">${materialCatalog.length ? 'No material matches your search.' : 'No materials in your list yet. Add your first material above.'}</p>`;
+  list.innerHTML = matches.length ? matches.map(material => `<article class="catalog-record"><div><b>${escapeHtml(material.name)}</b><small>Default unit: ${escapeHtml(material.unit)}</small></div><div class="catalog-actions"><button class="edit-catalog-material" data-edit-catalog-material="${material.id}">EDIT</button><button data-add-catalog-material="${material.id}">ADD TO STOCK</button></div></article>`).join('') : `<p class="empty-state">${materialCatalog.length ? 'No material matches your search.' : 'No materials in your list yet. Add your first material above.'}</p>`;
+}
+function openCatalogForm(material = null) {
+  editingCatalogMaterialId = material?.id || null;
+  const form = document.querySelector('#catalog-form');
+  form.hidden = false;
+  document.querySelector('#catalog-form-title').textContent = material ? 'Edit material' : 'Add material to list';
+  document.querySelector('#catalog-submit').textContent = material ? 'Save changes' : 'Add material';
+  document.querySelector('#catalog-material-name').value = material?.name || '';
+  document.querySelector('#catalog-material-unit').value = material?.unit || '';
+  document.querySelector('#catalog-material-name').focus();
 }
 function openCatalogStockForm(material) {
   if (!material) return;
@@ -463,9 +641,11 @@ function openCatalogStockForm(material) {
   locationSelect.innerHTML = stockLocations.length ? stockLocations.map(location => `<option value="${location.id}">${escapeHtml(location.name)}</option>`).join('') : '<option value="">Add a stock location first</option>';
   locationSelect.disabled = !stockLocations.length;
   form.hidden = false;
+  requestAnimationFrame(() => form.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+  showToast(`Add ${material.name} to a stock location`);
 }
 function createCommercialChecklist() {
-  return commercialInspectionDefaults.map((name, index) => ({ id: `inspection-${Date.now()}-${index}`, name, completed: false }));
+  return commercialInspectionDefaults.map(name => ({ id: newId(), name, completed: false }));
 }
 function renderInspectionChecklist(job) {
   const inspections = job.inspections || [];
@@ -480,6 +660,9 @@ function openJob(job) {
   document.querySelector('#job-detail-type').textContent = job.type || 'JOB DETAILS';
   const dueLabel = job.due ? new Date(`${job.due}T12:00:00`).toLocaleDateString() : 'No due date added';
   document.querySelector('#job-detail-location').textContent = `${job.location || 'No location added'} · ${dueLabel}`;
+  const crewOptions = document.querySelector('#job-crew-options');
+  crewOptions.innerHTML = crews.length ? crews.map((crew, index) => `<label class="job-crew-option"><input type="checkbox" data-crew-index="${index}" ${crew.jobId === job.id ? 'checked' : ''} /><span><b>${escapeHtml(crew.name)}</b><small>${crew.jobId && crew.jobId !== job.id ? `Currently assigned to ${escapeHtml(crew.jobName || 'another job')}` : (crew.members.length ? `${crew.members.length} member${crew.members.length === 1 ? '' : 's'}` : 'No members')}</small></span></label>`).join('') : '<p class="empty-state">No crews created yet.</p>';
+  document.querySelector('#job-crew-form').querySelector('button[type="submit"]').disabled = !crews.length;
   const isCommercial = job.type === 'Commercial Jobs';
   document.querySelector('#inspection-panel').hidden = !isCommercial;
   document.querySelector('#non-commercial-panel').hidden = isCommercial;
@@ -495,6 +678,7 @@ function openCrew(index) {
   document.querySelector('#crew-detail-name').textContent = crew.name;
   document.querySelector('#crew-detail-members').innerHTML = crew.members.length ? crew.members.map((member, index) => `<div class="member-row"><span>${initials(member.name)}</span><div><strong>${escapeHtml(member.name)}</strong><small>${escapeHtml(member.role)}</small></div><button class="remove-member-button" data-remove-member="${index}">REMOVE</button></div>`).join('') : '<p class="empty-state">No members assigned to this crew.</p>';
   document.querySelector('#crew-job-select').innerHTML = `<option value="">Unassigned</option>${jobs.map(job => `<option value="${job.id}" ${crew.jobId === job.id ? 'selected' : ''}>${escapeHtml(job.name)}</option>`).join('')}`;
+  document.querySelector('#crew-assignment-title').textContent = crew.jobId ? 'Edit job assignment' : 'Assign to a job';
   document.querySelector('#crew-member-form').reset();
   showView('crew-detail');
 }
@@ -526,7 +710,9 @@ document.querySelector('#show-stock-location-form').addEventListener('click', ()
   document.querySelector('#stock-location-form').hidden = !document.querySelector('#stock-location-form').hidden;
 });
 document.querySelector('#show-catalog-form').addEventListener('click', () => {
-  document.querySelector('#catalog-form').hidden = !document.querySelector('#catalog-form').hidden;
+  const form = document.querySelector('#catalog-form');
+  if (form.hidden || editingCatalogMaterialId) openCatalogForm();
+  else form.hidden = true;
 });
 function openJobForm(job = null) {
   editingJobId = job?.id || null;
@@ -572,6 +758,8 @@ document.querySelectorAll('[data-cancel-form]').forEach(button => button.addEven
   const form = document.querySelector(`#${button.dataset.cancelForm}`);
   form.reset();
   if (button.dataset.cancelForm === 'job-form') editingJobId = null;
+  if (button.dataset.cancelForm === 'catalog-form') editingCatalogMaterialId = null;
+  if (button.dataset.cancelForm === 'location-use-form') selectedStockItemId = null;
   if (button.dataset.cancelForm === 'schedule-form') renderScheduleAssignmentType();
   if (button.dataset.cancelMode !== 'reset') form.hidden = true;
 }));
@@ -587,7 +775,7 @@ document.querySelector('#service-note-form').addEventListener('submit', event =>
   const note = document.querySelector('#service-note-text').value.trim();
   const materials = document.querySelector('#service-note-materials').value.trim();
   if (!job || !note) return;
-  serviceNotes.push({ id: `service-note-${Date.now()}`, jobId: job.id, jobName: job.name, jobType: job.type, note, materials });
+  serviceNotes.push({ id: newId(), jobId: job.id, jobName: job.name, jobType: job.type, note, materials });
   event.currentTarget.reset();
   event.currentTarget.hidden = true;
   saveServiceNotes();
@@ -606,7 +794,7 @@ document.querySelector('#schedule-form').addEventListener('submit', event => {
   const location = document.querySelector('#schedule-location').value.trim();
   const job = jobs.find(item => item.id === document.querySelector('#schedule-job').value);
   if (!person) return;
-  todaySchedule.push({ id: `schedule-${Date.now()}`, person, location: location || 'Location not added', jobName: job?.name || '' });
+  todaySchedule.push({ id: newId(), crewId: isCrew ? crews[crewIndex]?.id || null : null, person, location: location || 'Location not added', jobId: job?.id || null, jobName: job?.name || '' });
   event.currentTarget.reset();
   event.currentTarget.hidden = true;
   renderScheduleAssignmentType();
@@ -620,18 +808,18 @@ document.querySelector('#home-next-job').addEventListener('click', event => {
 });
 document.querySelector('#team-form').addEventListener('submit', event => {
   event.preventDefault(); const name = document.querySelector('#team-name').value.trim(); if (!name) return;
-  crews.push({ name, color: crewColors[crews.length % crewColors.length], members: [], jobId: '', jobName: '' }); event.currentTarget.reset(); event.currentTarget.hidden = true; saveData();
+  crews.push({ id: newId(), name, color: crewColors[crews.length % crewColors.length], members: [], jobId: '', jobName: '' }); event.currentTarget.reset(); event.currentTarget.hidden = true; saveData();
 });
 document.querySelector('#member-form').addEventListener('submit', event => {
   event.preventDefault(); const name = document.querySelector('#member-name').value.trim(); const role = document.querySelector('#member-role').value.trim(); const crewIndex = Number(document.querySelector('#member-crew').value);
-  if (!name || !role || !crews[crewIndex]) return; crews[crewIndex].members.push({ name, role }); event.currentTarget.reset(); event.currentTarget.hidden = true; saveData();
+  if (!name || !role || !crews[crewIndex]) return; crews[crewIndex].members.push({ id: newId(), name, role }); event.currentTarget.reset(); event.currentTarget.hidden = true; saveData();
 });
 document.querySelector('#tool-form').addEventListener('submit', event => {
   event.preventDefault();
   const name = document.querySelector('#tool-name').value.trim();
   const toolId = document.querySelector('#tool-id').value.trim();
   if (!name) return;
-  tools.push({ id: `tool-${Date.now()}`, name, toolId, checkedOutTo: '' });
+  tools.push({ id: newId(), name, toolId, checkedOutTo: '' });
   event.currentTarget.reset();
   event.currentTarget.hidden = true;
   saveTools();
@@ -640,7 +828,7 @@ document.querySelector('#stock-location-form').addEventListener('submit', event 
   event.preventDefault();
   const name = document.querySelector('#stock-location-name').value.trim();
   if (!name) return;
-  stockLocations.push({ id: `stock-${Date.now()}`, name, items: [] });
+  stockLocations.push({ id: newId(), name, items: [] });
   event.currentTarget.reset();
   event.currentTarget.hidden = true;
   saveStockLocations();
@@ -650,18 +838,25 @@ document.querySelector('#catalog-form').addEventListener('submit', event => {
   const name = document.querySelector('#catalog-material-name').value.trim();
   const unit = document.querySelector('#catalog-material-unit').value.trim();
   if (!name || !unit) return;
-  if (materialCatalog.some(material => material.name.toLowerCase() === name.toLowerCase())) { showToast('That material is already in your list'); return; }
-  materialCatalog.push({ id: `material-${Date.now()}`, name, unit });
+  if (materialCatalog.some(material => material.id !== editingCatalogMaterialId && material.name.toLowerCase() === name.toLowerCase())) { showToast('That material is already in your list'); return; }
+  const material = materialCatalog.find(item => item.id === editingCatalogMaterialId);
+  if (material) {
+    material.name = name;
+    material.unit = unit;
+  } else materialCatalog.push({ id: newId(), name, unit });
+  editingCatalogMaterialId = null;
   event.currentTarget.reset();
   event.currentTarget.hidden = true;
   saveMaterialCatalog();
 });
 document.querySelector('#catalog-search').addEventListener('input', event => renderMaterialCatalog(event.target.value));
 document.querySelector('#catalog-list').addEventListener('click', event => {
-  const button = event.target.closest('[data-add-catalog-material]');
-  if (button) openCatalogStockForm(materialCatalog.find(material => material.id === button.dataset.addCatalogMaterial));
+  const editButton = event.target.closest('[data-edit-catalog-material]');
+  if (editButton) { openCatalogForm(materialCatalog.find(material => material.id === editButton.dataset.editCatalogMaterial)); return; }
+  const addButton = event.target.closest('[data-add-catalog-material]');
+  if (addButton) openCatalogStockForm(materialCatalog.find(material => material.id === addButton.dataset.addCatalogMaterial));
 });
-document.querySelector('#catalog-stock-form').addEventListener('submit', event => {
+document.querySelector('#catalog-stock-form').addEventListener('submit', async event => {
   event.preventDefault();
   const material = materialCatalog.find(item => item.id === selectedCatalogMaterialId);
   const location = stockLocations.find(item => item.id === document.querySelector('#catalog-stock-location').value);
@@ -671,8 +866,19 @@ document.querySelector('#catalog-stock-form').addEventListener('submit', event =
   if (!material || !location || !unit || Number.isNaN(quantity) || quantity < 0 || minimum === '') return;
   location.items ||= [];
   const existing = location.items.find(item => item.name.toLowerCase() === material.name.toLowerCase() && item.unit.toLowerCase() === unit.toLowerCase());
+  if (existing && usesNormalizedStorage() && quantity > 0) {
+    const { error } = await supabaseClient.rpc('restock_item', { target_stock_item_id: existing.id, amount_added: quantity, restock_note: null });
+    if (error) { showToast(error.message); return; }
+    const { error: thresholdError } = await supabaseClient.from('stock_items').update({ low_stock_threshold: Number(minimum), updated_by: currentUser.id, updated_at: new Date().toISOString() }).eq('id', existing.id).eq('company_id', activeCompanyId);
+    if (thresholdError) { showToast(thresholdError.message); return; }
+    event.currentTarget.reset();
+    event.currentTarget.hidden = true;
+    await loadNormalizedState();
+    showToast(`${material.name} added to ${location.name}`);
+    return;
+  }
   if (existing) { existing.quantity = String(Number(existing.quantity) + quantity); existing.minimum = minimum; }
-  else location.items.push({ id: `item-${Date.now()}`, name: material.name, quantity: String(quantity), unit, minimum });
+  else location.items.push({ id: newId(), materialId: material.id, name: material.name, quantity: String(quantity), unit, minimum });
   event.currentTarget.reset();
   event.currentTarget.hidden = true;
   saveStockLocations();
@@ -704,18 +910,58 @@ document.querySelector('#stock-item-form').addEventListener('submit', event => {
   const minimum = document.querySelector('#stock-item-minimum').value;
   if (!location || !name || quantity === '' || !unit || minimum === '') return;
   location.items ||= [];
-  location.items.push({ id: `item-${Date.now()}`, name, quantity, unit, minimum });
+  location.items.push({ id: newId(), name, quantity, unit, minimum });
   event.currentTarget.reset();
   saveStockLocations();
   renderStockItems(location);
 });
 document.querySelector('#stock-item-list').addEventListener('click', event => {
-  const button = event.target.closest('[data-remove-stock-item]');
   const location = stockLocations.find(item => item.id === selectedStockLocationId);
-  if (!button || !location || !confirm('Delete this stock item?')) return;
-  location.items = location.items.filter(item => item.id !== button.dataset.removeStockItem);
+  const useButton = event.target.closest('[data-use-stock-item]');
+  if (useButton && location) {
+    const item = location.items.find(stock => stock.id === useButton.dataset.useStockItem);
+    if (!item) return;
+    selectedStockItemId = item.id;
+    document.querySelector('#location-use-name').value = `${item.name} · ${item.quantity} ${item.unit} available`;
+    document.querySelector('#location-use-quantity').value = '';
+    const form = document.querySelector('#location-use-form');
+    form.hidden = false;
+    form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document.querySelector('#location-use-quantity').focus();
+    return;
+  }
+  const removeButton = event.target.closest('[data-remove-stock-item]');
+  if (!removeButton || !location || !confirm('Delete this stock item?')) return;
+  location.items = location.items.filter(item => item.id !== removeButton.dataset.removeStockItem);
   saveStockLocations();
   renderStockItems(location);
+});
+document.querySelector('#location-use-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const location = stockLocations.find(item => item.id === selectedStockLocationId);
+  const item = location?.items?.find(stock => stock.id === selectedStockItemId);
+  const used = Number(document.querySelector('#location-use-quantity').value);
+  if (!location || !item || !used || used <= 0) return;
+  const onHand = Number(item.quantity);
+  if (used > onHand) { showToast(`Only ${item.quantity} ${item.unit} available`); return; }
+  if (usesNormalizedStorage()) {
+    const { data, error } = await supabaseClient.rpc('use_stock_item', { target_stock_item_id: item.id, amount_used: used, target_job_id: null, usage_note: null });
+    if (error) { showToast(error.message); return; }
+    selectedStockItemId = null;
+    event.currentTarget.reset();
+    event.currentTarget.hidden = true;
+    await loadNormalizedState();
+    showToast(data?.needs_attention ? `${item.name} in ${location.name} needs attention` : `${used} ${item.unit} of ${item.name} used`);
+    return;
+  }
+  item.quantity = String(onHand - used);
+  selectedStockItemId = null;
+  event.currentTarget.reset();
+  event.currentTarget.hidden = true;
+  saveStockLocations();
+  renderStockItems(location);
+  const low = Number(item.quantity) <= Number(item.minimum || 0);
+  showToast(low ? `${item.name} in ${location.name} needs attention` : `${used} ${item.unit} of ${item.name} used`);
 });
 document.querySelector('#delete-stock-location-button').addEventListener('click', () => {
   const location = stockLocations.find(item => item.id === selectedStockLocationId);
@@ -742,7 +988,7 @@ document.querySelector('#crew-member-form').addEventListener('submit', event => 
   const name = document.querySelector('#crew-member-name').value.trim();
   const role = document.querySelector('#crew-member-role').value.trim();
   if (!name || !role || selectedCrewIndex === null) return;
-  crews[selectedCrewIndex].members.push({ name, role });
+  crews[selectedCrewIndex].members.push({ id: newId(), name, role });
   saveData();
   openCrew(selectedCrewIndex);
 });
@@ -754,12 +1000,30 @@ document.querySelector('#job-form').addEventListener('submit', event => {
     if (job) Object.assign(job, { name, type, location, due });
     if (job?.type === 'Commercial Jobs' && !Array.isArray(job.inspections)) job.inspections = createCommercialChecklist();
     crews.forEach(crew => { if (crew.jobId === editingJobId) crew.jobName = name; });
-  } else jobs.push({ id: `${Date.now()}`, name, type, location, due, inspections: type === 'Commercial Jobs' ? createCommercialChecklist() : [] });
+  } else jobs.push({ id: newId(), name, type, location, due, inspections: type === 'Commercial Jobs' ? createCommercialChecklist() : [] });
   editingJobId = null; event.currentTarget.reset(); event.currentTarget.hidden = true; saveData();
 });
 document.querySelector('#crew-assignment-form').addEventListener('submit', event => {
   event.preventDefault(); if (selectedCrewIndex === null) return; const jobId = document.querySelector('#crew-job-select').value; const job = jobs.find(item => item.id === jobId);
   crews[selectedCrewIndex].jobId = jobId; crews[selectedCrewIndex].jobName = job ? job.name : ''; saveData(); showView('teams');
+});
+document.querySelector('#job-crew-form').addEventListener('submit', event => {
+  event.preventDefault();
+  const job = jobs.find(item => item.id === selectedJobId);
+  if (!job) return;
+  const selectedIndexes = new Set([...document.querySelectorAll('#job-crew-options input:checked')].map(input => Number(input.dataset.crewIndex)));
+  crews.forEach((crew, index) => {
+    if (selectedIndexes.has(index)) {
+      crew.jobId = job.id;
+      crew.jobName = job.name;
+    } else if (crew.jobId === job.id) {
+      crew.jobId = '';
+      crew.jobName = '';
+    }
+  });
+  saveData();
+  openJob(job);
+  showToast('Crew assignments updated');
 });
 document.querySelector('#inspection-list').addEventListener('change', event => {
   const checkbox = event.target.closest('[data-inspection-id]');
@@ -788,7 +1052,7 @@ document.querySelector('#custom-inspection-form').addEventListener('submit', eve
   const input = document.querySelector('#custom-inspection-name');
   const name = input.value.trim();
   if (!job || !name) return;
-  job.inspections.push({ id: `custom-${Date.now()}`, name, completed: false });
+  job.inspections.push({ id: newId(), name, completed: false });
   input.value = '';
   saveData();
   renderInspectionChecklist(job);
@@ -886,7 +1150,7 @@ document.querySelector('#quick-add-sheet').addEventListener('click', event => {
   if (action === 'photo') document.querySelector('#photo-input').click();
 });
 document.querySelector('#issue-location').addEventListener('change', event => renderIssueItemOptions(event.target.value));
-document.querySelector('#issue-form').addEventListener('submit', event => {
+document.querySelector('#issue-form').addEventListener('submit', async event => {
   event.preventDefault();
   const location = stockLocations.find(item => item.id === document.querySelector('#issue-location').value);
   const item = location?.items?.find(stock => stock.id === document.querySelector('#issue-item').value);
@@ -894,6 +1158,15 @@ document.querySelector('#issue-form').addEventListener('submit', event => {
   if (!location || !item || !used || used <= 0) return;
   const onHand = Number(item.quantity);
   if (used > onHand) { showToast(`Only ${item.quantity} ${item.unit} available`); return; }
+  if (usesNormalizedStorage()) {
+    const { data, error } = await supabaseClient.rpc('use_stock_item', { target_stock_item_id: item.id, amount_used: used, target_job_id: null, usage_note: null });
+    if (error) { showToast(error.message); return; }
+    event.currentTarget.reset();
+    event.currentTarget.hidden = true;
+    await loadNormalizedState();
+    showToast(data?.needs_attention ? `${item.name} in ${location.name} needs attention` : `${used} ${item.unit} of ${item.name} used`);
+    return;
+  }
   item.quantity = String(onHand - used);
   event.currentTarget.reset();
   event.currentTarget.hidden = true;
@@ -901,6 +1174,60 @@ document.querySelector('#issue-form').addEventListener('submit', event => {
   const low = Number(item.quantity) <= Number(item.minimum || 0);
   showToast(low ? `${item.name} in ${location.name} needs attention` : `${used} ${item.unit} of ${item.name} used`);
   if (low && 'Notification' in window && Notification.permission === 'granted') new Notification('Stock needs attention', { body: `${item.name} in ${location.name} is at or below its threshold.` });
+});
+document.querySelector('#time-off-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const input = document.querySelector('#time-off-message');
+  const text = input.value.trim();
+  if (!text) return;
+  const authorName = profileFullName || profileName || currentUser?.user_metadata?.full_name || currentUser?.email || 'Team member';
+  const existing = timeOffMessages.find(message => message.id === editingTimeOffMessageId);
+  if (existing) {
+    existing.text = text;
+    existing.editedAt = new Date().toISOString();
+  } else timeOffMessages.push({ id: newId(), authorId: currentUser?.id || null, authorName, text, createdAt: new Date().toISOString() });
+  const wasEditing = Boolean(existing);
+  editingTimeOffMessageId = null;
+  event.currentTarget.reset();
+  document.querySelector('#time-off-form-title').textContent = 'Post a time-off request';
+  document.querySelector('#time-off-submit').textContent = 'Post to company';
+  document.querySelector('#cancel-time-off-edit').hidden = true;
+  saveTimeOffMessages();
+  showToast(wasEditing ? 'Time-off request updated' : 'Time-off request posted');
+  if ('Notification' in window && Notification.permission === 'default') {
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') showToast('Time-off notifications enabled');
+  }
+});
+document.querySelector('#time-off-messages').addEventListener('click', event => {
+  const editButton = event.target.closest('[data-edit-time-off]');
+  if (editButton) {
+    const message = timeOffMessages.find(item => item.id === editButton.dataset.editTimeOff);
+    const canManage = message && (message.authorId ? message.authorId === currentUser?.id : message.authorName === (profileFullName || profileName));
+    if (!canManage) return;
+    editingTimeOffMessageId = message.id;
+    document.querySelector('#time-off-message').value = message.text;
+    document.querySelector('#time-off-form-title').textContent = 'Edit time-off request';
+    document.querySelector('#time-off-submit').textContent = 'Save changes';
+    document.querySelector('#cancel-time-off-edit').hidden = false;
+    document.querySelector('#time-off-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.querySelector('#time-off-message').focus();
+    return;
+  }
+  const deleteButton = event.target.closest('[data-delete-time-off]');
+  const message = timeOffMessages.find(item => item.id === deleteButton?.dataset.deleteTimeOff);
+  const canManage = message && (message.authorId ? message.authorId === currentUser?.id : message.authorName === (profileFullName || profileName));
+  if (!deleteButton || !canManage || !confirm('Delete this time-off request?')) return;
+  timeOffMessages = timeOffMessages.filter(message => message.id !== deleteButton.dataset.deleteTimeOff);
+  saveTimeOffMessages();
+  showToast('Time-off request deleted');
+});
+document.querySelector('#cancel-time-off-edit').addEventListener('click', () => {
+  editingTimeOffMessageId = null;
+  document.querySelector('#time-off-form').reset();
+  document.querySelector('#time-off-form-title').textContent = 'Post a time-off request';
+  document.querySelector('#time-off-submit').textContent = 'Post to company';
+  document.querySelector('#cancel-time-off-edit').hidden = true;
 });
 document.querySelector('#photo-input').addEventListener('change', event => {
   const photo = event.target.files[0];
