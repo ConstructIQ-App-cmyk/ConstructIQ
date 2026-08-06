@@ -974,7 +974,8 @@ document.querySelector('#location-restock-form').addEventListener('submit', asyn
     event.currentTarget.reset();
     event.currentTarget.hidden = true;
     await loadNormalizedState();
-    renderStockItems(stockLocations.find(record => record.id === location.id));
+    const refreshedLocation = stockLocations.find(record => record.id === location.id);
+    if (refreshedLocation) renderStockItems(refreshedLocation);
     showToast(`${added} ${item.unit} added to ${item.name}`);
     return;
   }
@@ -1001,6 +1002,8 @@ document.querySelector('#location-use-form').addEventListener('submit', async ev
     event.currentTarget.reset();
     event.currentTarget.hidden = true;
     await loadNormalizedState();
+    const refreshedLocation = stockLocations.find(record => record.id === location.id);
+    if (refreshedLocation) renderStockItems(refreshedLocation);
     showToast(data?.needs_attention ? `${item.name} in ${location.name} needs attention` : `${used} ${item.unit} of ${item.name} used`);
     return;
   }
