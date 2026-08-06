@@ -1,5 +1,5 @@
-const CACHE_NAME = 'current-v55';
-const APP_SHELL = ['./', './index.html', './styles.css', './app.js?v=53', './manifest.webmanifest', './icon.svg'];
+const CACHE_NAME = 'current-v56';
+const APP_SHELL = ['./', './index.html', './styles.css', './app.js?v=54', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)));

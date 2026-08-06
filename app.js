@@ -18,7 +18,15 @@ const showView = target => {
   const activeTab = parentTabs[target] || target;
   views.forEach(view => view.classList.toggle('active', view.id === `${target}-view`));
   navItems.forEach(item => item.classList.toggle('active', item.dataset.target === activeTab));
-  document.querySelector('#add-button').hidden = target === 'job-detail';
+  document.querySelector('#add-button').hidden = ['job-detail', 'stock-detail'].includes(target);
+  if (['job-detail', 'stock-detail'].includes(target)) {
+    const sheet = document.querySelector('#quick-add-sheet');
+    const overlay = document.querySelector('#quick-add-overlay');
+    sheet?.classList.remove('open');
+    sheet?.setAttribute('aria-hidden', 'true');
+    overlay?.classList.remove('open');
+    if (overlay) overlay.hidden = true;
+  }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 document.querySelectorAll('[data-target]').forEach(button => button.addEventListener('click', () => showView(button.dataset.target)));
@@ -67,6 +75,7 @@ let timeOffMessages = JSON.parse(localStorage.getItem(timeOffKey) || '[]');
 let editingTimeOffMessageId = null;
 let selectedStockLocationId = null;
 let selectedStockItemId = null;
+let selectedRestockStockItemId = null;
 let selectedCatalogMaterialId = null;
 let editingCatalogMaterialId = null;
 let selectedCrewIndex = null;
@@ -580,14 +589,16 @@ function openStockLocation(location) {
   document.querySelector('#stock-edit-name').value = location.name;
   document.querySelector('#stock-edit-form').hidden = true;
   document.querySelector('#location-use-form').hidden = true;
+  document.querySelector('#location-restock-form').hidden = true;
   selectedStockItemId = null;
+  selectedRestockStockItemId = null;
   document.querySelector('#stock-item-form').reset();
   renderStockItems(location);
   showView('stock-detail');
 }
 function renderStockItems(location) {
   const list = document.querySelector('#stock-item-list');
-  list.innerHTML = location.items.length ? location.items.map(item => { const low = Number(item.quantity) <= Number(item.minimum || 0); return `<article class="stock-item-record ${low ? 'low-stock-item' : ''}"><div><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.quantity)} ${escapeHtml(item.unit)} · Minimum: ${escapeHtml(item.minimum ?? 0)}${low ? ' · Needs attention' : ''}</small></div><div class="stock-item-actions"><button class="use-stock-item" data-use-stock-item="${item.id}">USE</button><button class="remove-stock-item" data-remove-stock-item="${item.id}" aria-label="Remove ${escapeHtml(item.name)}">&times;</button></div></article>`; }).join('') : '<p class="empty-state">No material added to this location yet.</p>';
+  list.innerHTML = location.items.length ? location.items.map(item => { const low = Number(item.quantity) <= Number(item.minimum || 0); return `<article class="stock-item-record ${low ? 'low-stock-item' : ''}"><div><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.quantity)} ${escapeHtml(item.unit)} · Minimum: ${escapeHtml(item.minimum ?? 0)}${low ? ' · Needs attention' : ''}</small></div><div class="stock-item-actions"><button class="restock-stock-item" data-restock-stock-item="${item.id}">ADD</button><button class="use-stock-item" data-use-stock-item="${item.id}">USE</button><button class="remove-stock-item" data-remove-stock-item="${item.id}" aria-label="Remove ${escapeHtml(item.name)}">&times;</button></div></article>`; }).join('') : '<p class="empty-state">No material added to this location yet.</p>';
 }
 function renderTodaySchedule() {
   if (!usesNormalizedStorage() && localStorage.getItem(scheduleDateKey) !== localCalendarDate()) {
@@ -760,6 +771,7 @@ document.querySelectorAll('[data-cancel-form]').forEach(button => button.addEven
   if (button.dataset.cancelForm === 'job-form') editingJobId = null;
   if (button.dataset.cancelForm === 'catalog-form') editingCatalogMaterialId = null;
   if (button.dataset.cancelForm === 'location-use-form') selectedStockItemId = null;
+  if (button.dataset.cancelForm === 'location-restock-form') selectedRestockStockItemId = null;
   if (button.dataset.cancelForm === 'schedule-form') renderScheduleAssignmentType();
   if (button.dataset.cancelMode !== 'reset') form.hidden = true;
 }));
@@ -917,6 +929,19 @@ document.querySelector('#stock-item-form').addEventListener('submit', event => {
 });
 document.querySelector('#stock-item-list').addEventListener('click', event => {
   const location = stockLocations.find(item => item.id === selectedStockLocationId);
+  const restockButton = event.target.closest('[data-restock-stock-item]');
+  if (restockButton && location) {
+    const item = location.items.find(stock => stock.id === restockButton.dataset.restockStockItem);
+    if (!item) return;
+    selectedRestockStockItemId = item.id;
+    document.querySelector('#location-restock-name').value = `${item.name} · ${item.quantity} ${item.unit} available`;
+    document.querySelector('#location-restock-quantity').value = '';
+    const form = document.querySelector('#location-restock-form');
+    form.hidden = false;
+    form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document.querySelector('#location-restock-quantity').focus();
+    return;
+  }
   const useButton = event.target.closest('[data-use-stock-item]');
   if (useButton && location) {
     const item = location.items.find(stock => stock.id === useButton.dataset.useStockItem);
@@ -935,6 +960,31 @@ document.querySelector('#stock-item-list').addEventListener('click', event => {
   location.items = location.items.filter(item => item.id !== removeButton.dataset.removeStockItem);
   saveStockLocations();
   renderStockItems(location);
+});
+document.querySelector('#location-restock-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const location = stockLocations.find(item => item.id === selectedStockLocationId);
+  const item = location?.items?.find(stock => stock.id === selectedRestockStockItemId);
+  const added = Number(document.querySelector('#location-restock-quantity').value);
+  if (!location || !item || !added || added <= 0) return;
+  if (usesNormalizedStorage()) {
+    const { error } = await supabaseClient.rpc('restock_item', { target_stock_item_id: item.id, amount_added: added, restock_note: null });
+    if (error) { showToast(error.message); return; }
+    selectedRestockStockItemId = null;
+    event.currentTarget.reset();
+    event.currentTarget.hidden = true;
+    await loadNormalizedState();
+    renderStockItems(stockLocations.find(record => record.id === location.id));
+    showToast(`${added} ${item.unit} added to ${item.name}`);
+    return;
+  }
+  item.quantity = String(Number(item.quantity) + added);
+  selectedRestockStockItemId = null;
+  event.currentTarget.reset();
+  event.currentTarget.hidden = true;
+  saveStockLocations();
+  renderStockItems(location);
+  showToast(`${added} ${item.unit} added to ${item.name}`);
 });
 document.querySelector('#location-use-form').addEventListener('submit', async event => {
   event.preventDefault();
